@@ -1,0 +1,539 @@
+<!DOCTYPE html>
+<html lang="es" data-bs-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sistema de Control de Inventarios Multi-Usuario | Emprendimiento JOSE HERRERA</title>
+    
+    <!-- SEO Meta Tags -->
+    <meta name="description" content="Sistema de Control de Inventarios Multi-Usuario para Comercios, Panaderías, Farmacias, Zapaterías y tiendas en general. Funcional desde GitHub Pages con Turso DB y Cloudflare R2.">
+    <meta name="author" content="Emprendimiento JOSE HERRERA">
+
+    <!-- Bootstrap 5.3 CSS (CDN) -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">
+    
+    <!-- Bootstrap Icons (CDN) -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+
+    <!-- Google Identity Services SDK (OAuth 2.0) -->
+    <script src="https://accounts.google.com/gsi/client" async defer></script>
+
+    <!-- jsPDF & jspdf-autotable CDN para Generación de Reportes PDF -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
+</head>
+<body class="bg-body-tertiary d-flex flex-column min-vh-100">
+
+    <!-- BARRA DE NAVEGACIÓN DINÁMICA -->
+    <header id="mainNavbarContainer"></header>
+
+    <!-- VISTA PRINCIPAL 1: LANDING PAGE PÚBLICA (Al ingresar por primera vez) -->
+    <main id="landingView" class="container my-auto py-5">
+        <div class="row align-items-center g-5">
+            <div class="col-lg-7">
+                <div class="d-inline-flex align-items-center bg-primary-subtle text-primary fw-bold px-3 py-1 rounded-pill mb-3">
+                    <i class="bi bi-rocket-takeoff-fill me-2"></i> Producción de Emprendimiento JOSE HERRERA
+                </div>
+                <h1 class="display-4 fw-extrabold text-body-emphasis mb-3">
+                    Control de Inventarios Multi-Usuario Intuitivo y Completo
+                </h1>
+                <p class="lead text-body-secondary mb-4">
+                    Administra tu negocio sin complicaciones desde cualquier dispositivo. Controla stock, compras, ventas con resumen a WhatsApp, clientes, proveedores y reportes PDF. 
+                    <strong>Disfruta de 15 días de uso continuo totalmente GRATIS.</strong>
+                </p>
+
+                <!-- Tarjeta con Métodos de Pago Disponibles -->
+                <div class="card border-0 shadow-sm mb-4">
+                    <div class="card-body">
+                        <h6 class="fw-bold mb-3" id="landingPaymentHeader"><i class="bi bi-wallet2 text-primary me-2"></i> Pasarelas de Pago Disponibles (Membresía $<span id="membershipPriceLanding">10.00</span> USD / mes):</h6>
+                        <div class="row g-2 small">
+                            <div class="col-md-6 border-end">
+                                <span class="fw-bold text-success"><i class="bi bi-bank me-1"></i> Bolívares (VES - Tasa BCV):</span>
+                                <ul class="list-unstyled mb-0 text-muted">
+                                    <li><strong>BDV Transf:</strong> Cta Cte <code>01020215930000285359</code></li>
+                                    <li><strong>BDV PagoMóvil:</strong> 0102 | 04141448515 | C.I. 15949430</li>
+                                    <li><strong>Titular:</strong> JOSE M HERRERA V (V-15949430)</li>
+                                </ul>
+                            </div>
+                            <div class="col-md-6">
+                                <span class="fw-bold text-primary"><i class="bi bi-currency-dollar me-1"></i> Dólares (USD):</span>
+                                <ul class="list-unstyled mb-0 text-muted">
+                                    <li><strong>Binance PayID:</strong> <code>313993255</code> | jose@jesuministrosymas.com.ve</li>
+                                    <li><strong>USDT TRC20:</strong> <code>TR3PTVe5gnWuEo2topM594fkUb6ueMZPwn</code></li>
+                                    <li><strong>ZINLI:</strong> herrejose@gmail.com</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="d-flex flex-wrap gap-3">
+                    <button class="btn btn-primary btn-lg px-4" onclick="AppUI.showRegisterModal()"><i class="bi bi-person-plus-fill me-2"></i> Probar Gratis por 15 Días</button>
+                    <button class="btn btn-outline-secondary btn-lg px-4" onclick="AppUI.showLoginModal()"><i class="bi bi-box-arrow-in-right me-2"></i> Iniciar Sesión</button>
+                </div>
+            </div>
+
+            <div class="col-lg-5 text-center">
+                <div class="card border-0 shadow-lg p-4 bg-body rounded-4">
+                    <img src="./img/logo.png" alt="Logo Emprendimiento JOSE HERRERA" class="img-fluid mb-4 mx-auto rounded-3" style="max-height: 180px; object-fit: contain;">
+                    <h4 class="fw-bold mb-2">Bienvenido al Sistema</h4>
+                    <p class="text-muted small mb-4">Inicia sesión con tu cuenta de Google o con tu correo y clave registrados.</p>
+
+                    <!-- Google Sign-In Button Container -->
+                    <div id="googleBtnContainer" class="d-flex justify-content-center mb-3"></div>
+
+                    <div class="position-relative my-3">
+                        <hr>
+                        <span class="position-absolute top-50 start-50 translate-middle bg-body px-3 text-muted small">o usa tu correo</span>
+                    </div>
+
+                    <button class="btn btn-outline-primary w-100 py-2" onclick="AppUI.showLoginModal()"><i class="bi bi-envelope-fill me-2"></i> Ingreso Tradicional</button>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- VISTA PRINCIPAL 2: PANEL DE CONTROL DE LA APLICACIÓN (AUTENTICADO) -->
+    <main id="appView" class="container-fluid my-4 d-none">
+        <!-- Se renderiza dinámicamente mediante Admin / User JS -->
+    </main>
+
+    <!-- PIE DE PÁGINA REUTILIZABLE -->
+    <footer class="mt-auto py-3 bg-body-tertiary border-top text-center">
+        <div class="container">
+            <p class="mb-1 text-muted small">
+                <strong>&copy; 2026 Sistema de Control de Inventarios Multi-Usuario</strong> | TODOS LOS DERECHOS RESERVADOS
+            </p>
+            <p class="mb-0 text-muted small">
+                Desarrollado por <a href="https://emprendimientojh.blogspot.com/" target="_blank" class="text-primary fw-bold text-decoration-none">Emprendimiento JOSE HERRERA</a>
+            </p>
+        </div>
+    </footer>
+
+    <!-- ================================================================ -->
+    <!-- MODALES DEL SISTEMA (100% FUNCIONALES CON BOOTSTRAP 5) -->
+    <!-- ================================================================ -->
+
+    <!-- 1. MODAL LOGIN -->
+    <div class="modal fade" id="modalLogin" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title fw-bold"><i class="bi bi-box-arrow-in-right me-2"></i> Iniciar Sesión</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <!-- Google Login en Modal -->
+                    <div class="text-center mb-3">
+                        <p class="small text-muted mb-2">Ingresa rápidamente con tu cuenta de Google:</p>
+                        <div id="googleBtnContainerLogin" class="d-flex justify-content-center"></div>
+                    </div>
+
+                    <div class="position-relative my-3">
+                        <hr>
+                        <span class="position-absolute top-50 start-50 translate-middle bg-body px-3 text-muted small">o ingresa con tu correo</span>
+                    </div>
+
+                    <form onsubmit="event.preventDefault(); Auth.loginStandard(this.email.value, this.password.value).then(r => { bootstrap.Modal.getInstance(document.getElementById('modalLogin')).hide(); AppUI.renderApp(); if(r.multiple) AppUI.openAccountSelectorModal(); }).catch(e => alert(e.message));">
+                        <div class="mb-3">
+                            <label class="form-label fw-semibold">Correo Electrónico</label>
+                            <input type="email" name="email" class="form-control" placeholder="herrejose@gmail.com" required>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label fw-semibold">Clave de Acceso</label>
+                            <input type="password" name="password" class="form-control" required>
+                        </div>
+                        <button type="submit" class="btn btn-primary w-100 py-2 mb-2">Entrar al Sistema</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 2. MODAL REGISTRO -->
+    <div class="modal fade" id="modalRegister" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title fw-bold"><i class="bi bi-person-plus me-2"></i> Registrarse (15 Días Gratis)</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <!-- Google Sign-Up en Modal -->
+                    <div class="text-center mb-3">
+                        <p class="small text-muted mb-2"><i class="bi bi-google text-danger me-1"></i> Crea tu cuenta en 1 clic usando Google:</p>
+                        <div id="googleBtnContainerRegister" class="d-flex justify-content-center"></div>
+                    </div>
+
+                    <div class="position-relative my-3">
+                        <hr>
+                        <span class="position-absolute top-50 start-50 translate-middle bg-body px-3 text-muted small">o llena el formulario tradicional</span>
+                    </div>
+
+                    <form onsubmit="event.preventDefault(); Auth.registerStandard(this.name.value, this.email.value, this.password.value, this.confirm.value).then(() => { bootstrap.Modal.getInstance(document.getElementById('modalRegister')).hide(); AppUI.renderApp(); alert('¡Cuenta creada con éxito! Disfruta de tus 15 días gratis.'); }).catch(e => alert(e.message));">
+                        <div class="mb-3">
+                            <label class="form-label fw-semibold">Nombre de la Persona / Dueño</label>
+                            <input type="text" name="name" class="form-control" placeholder="Juan Pérez" required>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label fw-semibold">Correo de la Persona</label>
+                            <input type="email" name="email" class="form-control" placeholder="juan@ejemplo.com" required>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label fw-semibold">Clave</label>
+                            <input type="password" name="password" class="form-control" required>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label fw-semibold">Confirmación de Clave</label>
+                            <input type="password" name="confirm" class="form-control" required>
+                        </div>
+                        <button type="submit" class="btn btn-success w-100 py-2">Crear Cuenta y Comenzar</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 3. MODAL SELECTOR DE EMPRESA / CUENTA (MULTI-ACCESO) -->
+    <div class="modal fade" id="modalAccountSelector" tabindex="-1" data-bs-backdrop="static" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header bg-primary text-white">
+                    <h5 class="modal-title fw-bold"><i class="bi bi-buildings me-2"></i> Seleccionar Empresa / Cuenta</h5>
+                </div>
+                <div class="modal-body">
+                    <p class="text-muted small">Tu correo está asociado a múltiples comercios. Selecciona a cuál deseas ingresar:</p>
+                    <div class="list-group" id="accountSelectorList">
+                        <!-- Lista dinámica -->
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 4. MODAL NUEVO PRODUCTO -->
+    <div class="modal fade" id="modalNewProduct" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title fw-bold"><i class="bi bi-box-seam me-2"></i> Nuevo Producto</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <form onsubmit="User.saveNewProduct(event)">
+                        <div class="mb-3">
+                            <label class="form-label fw-semibold">Nombre del Producto</label>
+                            <input type="text" name="name" class="form-control" required>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label fw-semibold">Descripción</label>
+                            <textarea name="description" class="form-control" rows="2"></textarea>
+                        </div>
+                        <div class="row g-2 mb-3">
+                            <div class="col-md-6">
+                                <label class="form-label fw-semibold">Cantidad Inicial (Stock)</label>
+                                <input type="number" name="quantity" class="form-control" value="0" required>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label fw-semibold">Categoría</label>
+                                <input type="text" name="category" class="form-control" placeholder="General">
+                            </div>
+                        </div>
+                        <div class="row g-2 mb-3">
+                            <div class="col-md-6">
+                                <label class="form-label fw-semibold">Precio Compra ($)</label>
+                                <input type="number" step="0.01" name="purchase_price" class="form-control" value="0.00" required>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label fw-semibold">Precio Venta ($)</label>
+                                <input type="number" step="0.01" name="sale_price" class="form-control" value="0.00" required>
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label fw-semibold">Foto del Producto (PNG / JPG)</label>
+                            <input type="file" accept="image/png, image/jpeg" class="form-control">
+                        </div>
+                        <button type="submit" class="btn btn-primary w-100">Guardar Producto</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 5. MODAL NUEVO CLIENTE -->
+    <div class="modal fade" id="modalNewClient" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title fw-bold"><i class="bi bi-person-plus me-2"></i> Nuevo Cliente</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <form onsubmit="User.saveNewClient(event)">
+                        <div class="mb-3">
+                            <label class="form-label fw-semibold">Cédula / RIF</label>
+                            <input type="text" name="identity_card" class="form-control" placeholder="V-12345678" required>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label fw-semibold">Nombre Completo del Cliente</label>
+                            <input type="text" name="name" class="form-control" required>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label fw-semibold">Teléfono</label>
+                            <input type="text" name="phone" class="form-control">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label fw-semibold">Dirección</label>
+                            <input type="text" name="address" class="form-control">
+                        </div>
+                        <button type="submit" class="btn btn-primary w-100">Guardar Cliente</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 6. MODAL NUEVO PROVEEDOR -->
+    <div class="modal fade" id="modalNewSupplier" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title fw-bold"><i class="bi bi-building-add me-2"></i> Nuevo Proveedor</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <form onsubmit="User.saveNewSupplier(event)">
+                        <div class="mb-3">
+                            <label class="form-label fw-semibold">Nombre del Proveedor</label>
+                            <input type="text" name="name" class="form-control" required>
+                        </div>
+                        <div class="row g-2 mb-3">
+                            <div class="col-md-6">
+                                <label class="form-label fw-semibold">Teléfono</label>
+                                <input type="text" name="phone" class="form-control">
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label fw-semibold">Correo Electrónico</label>
+                                <input type="email" name="email" class="form-control">
+                            </div>
+                        </div>
+                        <div class="row g-2 mb-3">
+                            <div class="col-md-6">
+                                <label class="form-label fw-semibold">Página Web</label>
+                                <input type="text" name="website" class="form-control">
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label fw-semibold">Instagram</label>
+                                <input type="text" name="instagram" class="form-control" placeholder="@proveedor">
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label fw-semibold">Dirección</label>
+                            <input type="text" name="address" class="form-control">
+                        </div>
+                        <button type="submit" class="btn btn-primary w-100">Guardar Proveedor</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 7. MODAL NUEVA VENTA (SUBSTRAE STOCK) -->
+    <div class="modal fade" id="modalNewSale" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header bg-success text-white">
+                    <h5 class="modal-title fw-bold"><i class="bi bi-cart-check me-2"></i> Registrar Venta</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <form onsubmit="User.saveNewSale(event)">
+                        <div class="mb-3">
+                            <label class="form-label fw-semibold">Seleccionar Cliente</label>
+                            <select name="client_id" id="saleClientSelect" class="form-select" required></select>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label fw-semibold">Seleccionar Producto</label>
+                            <select name="product_id" id="saleProductSelect" class="form-select" required></select>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label fw-semibold">Cantidad a Vender</label>
+                            <input type="number" min="1" name="quantity" class="form-control" value="1" required>
+                        </div>
+                        <button type="submit" class="btn btn-success w-100 py-2">Confirmar Venta y Descontar Stock</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 8. MODAL NUEVA COMPRA (SUMA STOCK) -->
+    <div class="modal fade" id="modalNewPurchase" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header bg-primary text-white">
+                    <h5 class="modal-title fw-bold"><i class="bi bi-bag-plus me-2"></i> Registrar Compra</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <form onsubmit="User.saveNewPurchase(event)">
+                        <div class="mb-3">
+                            <label class="form-label fw-semibold">Seleccionar Proveedor</label>
+                            <select name="supplier_id" id="purchaseSupplierSelect" class="form-select" required></select>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label fw-semibold">Seleccionar Producto</label>
+                            <select name="product_id" id="purchaseProductSelect" class="form-select" required></select>
+                        </div>
+                        <div class="row g-2 mb-3">
+                            <div class="col-md-6">
+                                <label class="form-label fw-semibold">Cantidad Comprada</label>
+                                <input type="number" min="1" name="quantity" class="form-control" value="1" required>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label fw-semibold">Precio Unit. Compra ($)</label>
+                                <input type="number" step="0.01" name="unit_price" class="form-control" value="1.00" required>
+                            </div>
+                        </div>
+                        <button type="submit" class="btn btn-primary w-100 py-2">Confirmar Compra e Incrementar Stock</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 9. MODAL CARGA MASIVA CSV -->
+    <div class="modal fade" id="modalMassImport" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title fw-bold"><i class="bi bi-file-earmark-spreadsheet me-2"></i> Importación Masiva CSV (<span id="importEntityTitle"></span>)</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <input type="hidden" id="importEntityType">
+                    <p class="text-muted small mb-3">Sube un archivo en formato CSV con los campos requeridos. Puedes descargar una plantilla de ejemplo a continuación:</p>
+                    <button class="btn btn-outline-info btn-sm mb-3 w-100" onclick="ImportExport.downloadTemplate(document.getElementById('importEntityType').value)"><i class="bi bi-download me-1"></i> Descargar Plantilla de Ejemplo (CSV)</button>
+                    <form onsubmit="User.handleMassImport(event)">
+                        <div class="mb-3">
+                            <label class="form-label fw-semibold">Seleccionar Archivo .CSV</label>
+                            <input type="file" id="importCsvFile" accept=".csv" class="form-control" required>
+                        </div>
+                        <button type="submit" class="btn btn-primary w-100">Procesar e Importar Registros</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 10. MODAL REPORTAR PAGO MEMBRESÍA -->
+    <div class="modal fade" id="modalReportPayment" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header bg-dark text-white">
+                    <h5 class="modal-title fw-bold"><i class="bi bi-credit-card me-2"></i> Reportar Pago de Membresía ($10 USD)</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <form onsubmit="User.saveReportPayment(event)">
+                        <div class="mb-3">
+                            <label class="form-label fw-semibold">Forma de Pago Utilizada</label>
+                            <select name="method_id" id="paymentMethodSelect" class="form-select" required></select>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label fw-semibold">Número de Transferencia / Referencia</label>
+                            <input type="text" name="reference_number" class="form-control" placeholder="Ej: 00984123" required>
+                        </div>
+                        <div class="row g-2 mb-3">
+                            <div class="col-md-6">
+                                <label class="form-label fw-semibold">Banco de Origen (si aplica)</label>
+                                <input type="text" name="bank_origin" class="form-control" placeholder="Ej: Banesco">
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label fw-semibold">Fecha del Pago</label>
+                                <input type="date" name="payment_date" class="form-control" required>
+                            </div>
+                        </div>
+                        <button type="submit" class="btn btn-success w-100 py-2">Enviar Reporte para Verificación Admin</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 11. MODAL NUEVA FORMA DE PAGO (ADMIN) -->
+    <div class="modal fade" id="modalNewPaymentMethod" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title fw-bold"><i class="bi bi-bank me-2"></i> Nueva Forma de Pago (Admin)</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <form onsubmit="Admin.saveNewPaymentMethod(event)">
+                        <div class="row g-2 mb-3">
+                            <div class="col-md-6">
+                                <label class="form-label fw-semibold">Moneda</label>
+                                <select name="currency" class="form-select" required>
+                                    <option value="VES">Bolívares (VES)</option>
+                                    <option value="USD">Dólares (USD)</option>
+                                </select>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label fw-semibold">Tipo de Medio</label>
+                                <select name="type" class="form-select" required>
+                                    <option value="PagoMovil">PagoMóvil</option>
+                                    <option value="Transferencia">Transferencia Bancaria</option>
+                                    <option value="Binance">Binance Pay</option>
+                                    <option value="USDT">USDT TRC20</option>
+                                    <option value="Zinli">ZINLI</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label fw-semibold">Título del Método</label>
+                            <input type="text" name="title" class="form-control" placeholder="Ej: PagoMóvil Banco Mercantil" required>
+                        </div>
+                        <div class="row g-2 mb-3">
+                            <div class="col-md-6">
+                                <label class="form-label fw-semibold">Banco / Plataforma</label>
+                                <input type="text" name="bank_name" class="form-control">
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label fw-semibold">Cuenta / ID / Teléfono</label>
+                                <input type="text" name="account_number" class="form-control">
+                            </div>
+                        </div>
+                        <div class="row g-2 mb-3">
+                            <div class="col-md-6">
+                                <label class="form-label fw-semibold">Nombre Titular</label>
+                                <input type="text" name="holder_name" class="form-control">
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label fw-semibold">Cédula / RIF Titular</label>
+                                <input type="text" name="holder_id" class="form-control">
+                            </div>
+                        </div>
+                        <button type="submit" class="btn btn-primary w-100">Crear Método de Pago</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bootstrap 5.3 JS Bundle (CDN) -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script>
+
+    <!-- Scripts del Sistema -->
+    <script src="./js/config.js"></script>
+    <script src="./js/db.js"></script>
+    <script src="./js/storage.js"></script>
+    <script src="./js/pdf_reports.js"></script>
+    <script src="./js/import_export.js"></script>
+    <script src="./js/auth.js"></script>
+    <script src="./js/admin.js"></script>
+    <script src="./js/user.js"></script>
+    <script src="./js/presets.js"></script>
+    <script src="./js/app.js"></script>
+</body>
+</html>
