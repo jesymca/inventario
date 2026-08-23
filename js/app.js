@@ -13,6 +13,8 @@ class AppUIManager {
         this.renderNavbar();
         this.renderApp();
         this.initGoogleAuth();
+        // Actualiza precio de membresía en la landing desde localStorage al cargar
+        this.updateLandingMembershipPrice();
     }
 
     /**
@@ -216,12 +218,30 @@ class AppUIManager {
 
     /**
      * Actualiza dinámicamente el precio de membresía en la Landing Page
+     * Lee directamente de localStorage para garantizar el valor más reciente
      */
     updateLandingMembershipPrice() {
-        const span = document.getElementById("membershipPriceLanding");
-        if (span) {
-            span.innerText = CONFIG.MEMBERSHIP_PRICE_USD.toFixed(2);
+        // Leer precio directamente de localStorage (fuente de verdad)
+        let price = 10.00;
+        try {
+            const raw = localStorage.getItem("inv_db_settings");
+            if (raw) {
+                const settings = JSON.parse(raw);
+                const found = settings.find(s => s.key_name === "membership_price_usd");
+                if (found && found.value) {
+                    const parsed = parseFloat(String(found.value).replace(/[^0-9.]/g, ''));
+                    if (!isNaN(parsed) && parsed > 0) price = parsed;
+                }
+            }
+        } catch (e) {
+            price = CONFIG.MEMBERSHIP_PRICE_USD;
         }
+
+        // Actualizar todos los elementos que muestran el precio de membresía
+        ["membershipPriceLanding"].forEach(id => {
+            const el = document.getElementById(id);
+            if (el) el.innerText = price.toFixed(2);
+        });
     }
 
     /**
