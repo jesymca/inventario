@@ -72,23 +72,69 @@ class AppUIManager {
                         const m = bootstrap.Modal.getInstance(modalRegisterEl);
                         if (m) m.hide();
                     }
-                    Auth.handleGoogleCredentialResponse(res);
+                    Auth.handleGoogleCredentialResponse(res).then(r => {
+                        AppUI.renderApp();
+                        if (r && r.multiple) AppUI.openAccountSelectorModal();
+                    }).catch(e => alert(e.message));
                 }
             });
 
-            const btnOptions = {
-                theme: this.currentTheme === "dark" ? "filled_black" : "outline",
-                size: "large",
-                text: "continue_with",
-                shape: "pill"
-            };
+            this.renderGoogleButtons();
 
-            ["googleBtnContainer", "googleBtnContainerLogin", "googleBtnContainerRegister"].forEach(id => {
-                const container = document.getElementById(id);
-                if (container) {
-                    google.accounts.id.renderButton(container, btnOptions);
+            // Escuchar la apertura de los modales para re-renderizar botones cuando ya son visibles
+            ["modalLogin", "modalRegister"].forEach(modalId => {
+                const el = document.getElementById(modalId);
+                if (el) {
+                    el.addEventListener("shown.bs.modal", () => {
+                        this.renderGoogleButtons();
+                    });
                 }
             });
+        }
+    }
+
+    /**
+     * Renderiza los botones de Google en sus contenedores respectivos
+     */
+    renderGoogleButtons() {
+        if (window.google && google.accounts && google.accounts.id) {
+            const isDark = this.currentTheme === "dark";
+
+            const containerLogin = document.getElementById("googleBtnContainerLogin");
+            if (containerLogin) {
+                containerLogin.innerHTML = "";
+                google.accounts.id.renderButton(containerLogin, {
+                    theme: isDark ? "filled_black" : "outline",
+                    size: "large",
+                    text: "signin_with", // "Iniciar sesión con Google"
+                    shape: "pill",
+                    width: "280"
+                });
+            }
+
+            const containerRegister = document.getElementById("googleBtnContainerRegister");
+            if (containerRegister) {
+                containerRegister.innerHTML = "";
+                google.accounts.id.renderButton(containerRegister, {
+                    theme: isDark ? "filled_black" : "outline",
+                    size: "large",
+                    text: "signup_with", // "Registrarse con Google"
+                    shape: "pill",
+                    width: "280"
+                });
+            }
+
+            const containerLanding = document.getElementById("googleBtnContainer");
+            if (containerLanding) {
+                containerLanding.innerHTML = "";
+                google.accounts.id.renderButton(containerLanding, {
+                    theme: isDark ? "filled_black" : "outline",
+                    size: "large",
+                    text: "continue_with",
+                    shape: "pill",
+                    width: "280"
+                });
+            }
         }
     }
 
@@ -312,13 +358,21 @@ class AppUIManager {
     }
 
     showLoginModal() {
-        const modal = new bootstrap.Modal(document.getElementById("modalLogin"));
-        modal.show();
+        const el = document.getElementById("modalLogin");
+        if (el) {
+            const modal = bootstrap.Modal.getOrCreateInstance(el);
+            modal.show();
+            setTimeout(() => this.renderGoogleButtons(), 150);
+        }
     }
 
     showRegisterModal() {
-        const modal = new bootstrap.Modal(document.getElementById("modalRegister"));
-        modal.show();
+        const el = document.getElementById("modalRegister");
+        if (el) {
+            const modal = bootstrap.Modal.getOrCreateInstance(el);
+            modal.show();
+            setTimeout(() => this.renderGoogleButtons(), 150);
+        }
     }
 
     openAccountSelectorModal() {
