@@ -37,8 +37,8 @@ const CONFIG = {
         bucketName: "inventario-media"
     },
 
-    // Client ID de Google OAuth 2.0 (Reemplazar con el ID de cliente generado en Google Cloud Console)
-    GOOGLE_CLIENT_ID: "839482930192-examplegoogleclientid.apps.googleusercontent.com",
+    // Client ID de Google OAuth 2.0 (Configurado oficialmente)
+    GOOGLE_CLIENT_ID: "956917958355-nl2l7kood9jh63dol8gjkei6l065vscc.apps.googleusercontent.com",
 
     // Datos de Pago Predeterminados del Sistema
     DEFAULT_PAYMENT_METHODS: [
