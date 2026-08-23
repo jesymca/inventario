@@ -69,7 +69,7 @@ class UserManager {
                         <div class="card-header bg-body d-flex flex-wrap justify-content-between align-items-center gap-2 py-3">
                             <h5 class="mb-0 fw-bold"><i class="bi bi-boxes me-2"></i> Inventario de Productos</h5>
                             <div class="d-flex gap-2">
-                                <button class="btn btn-sm btn-outline-danger" onclick="PDFGenerator.generateInventoryPDF(DB.getLocalTable('products').filter(p=>p.business_id === Auth.currentBusiness.id), Auth.currentBusiness.name)"><i class="bi bi-file-earmark-pdf me-1"></i> PDF</button>
+                                <button class="btn btn-sm btn-outline-danger" onclick="PDFGenerator.generateInventoryPDF(DB.getLocalTable('products').filter(p=>p.business_id === Auth.currentBusiness.id), Auth.currentBusiness)"><i class="bi bi-file-earmark-pdf me-1"></i> PDF</button>
                                 <button class="btn btn-sm btn-outline-secondary" onclick="User.openImportModal('products')"><i class="bi bi-file-earmark-spreadsheet me-1"></i> Carga Masiva CSV</button>
                                 <button class="btn btn-sm btn-primary" onclick="User.openNewProductModal()"><i class="bi bi-plus-lg me-1"></i> Nuevo Producto</button>
                             </div>
@@ -165,7 +165,7 @@ class UserManager {
                         <div class="card-header bg-body d-flex flex-wrap justify-content-between align-items-center gap-2 py-3">
                             <h5 class="mb-0 fw-bold"><i class="bi bi-person-lines-fill me-2"></i> Directorio de Clientes</h5>
                             <div class="d-flex gap-2">
-                                <button class="btn btn-sm btn-outline-danger" onclick="PDFGenerator.generateClientsPDF(DB.getLocalTable('clients').filter(c=>c.business_id === Auth.currentBusiness.id), Auth.currentBusiness.name)"><i class="bi bi-file-earmark-pdf me-1"></i> PDF</button>
+                                <button class="btn btn-sm btn-outline-danger" onclick="PDFGenerator.generateClientsPDF(DB.getLocalTable('clients').filter(c=>c.business_id === Auth.currentBusiness.id), Auth.currentBusiness)"><i class="bi bi-file-earmark-pdf me-1"></i> PDF</button>
                                 <button class="btn btn-sm btn-outline-secondary" onclick="User.openImportModal('clients')"><i class="bi bi-file-earmark-spreadsheet me-1"></i> Carga Masiva CSV</button>
                                 <button class="btn btn-sm btn-primary" onclick="User.openNewClientModal()"><i class="bi bi-plus-lg me-1"></i> Nuevo Cliente</button>
                             </div>
@@ -204,7 +204,7 @@ class UserManager {
                         <div class="card-header bg-body d-flex flex-wrap justify-content-between align-items-center gap-2 py-3">
                             <h5 class="mb-0 fw-bold"><i class="bi bi-building me-2"></i> Directorio de Proveedores</h5>
                             <div class="d-flex gap-2">
-                                <button class="btn btn-sm btn-outline-danger" onclick="PDFGenerator.generateSuppliersPDF(DB.getLocalTable('suppliers').filter(s=>s.business_id === Auth.currentBusiness.id), Auth.currentBusiness.name)"><i class="bi bi-file-earmark-pdf me-1"></i> PDF</button>
+                                <button class="btn btn-sm btn-outline-danger" onclick="PDFGenerator.generateSuppliersPDF(DB.getLocalTable('suppliers').filter(s=>s.business_id === Auth.currentBusiness.id), Auth.currentBusiness)"><i class="bi bi-file-earmark-pdf me-1"></i> PDF</button>
                                 <button class="btn btn-sm btn-outline-secondary" onclick="User.openImportModal('suppliers')"><i class="bi bi-file-earmark-spreadsheet me-1"></i> Carga Masiva CSV</button>
                                 <button class="btn btn-sm btn-primary" onclick="User.openNewSupplierModal()"><i class="bi bi-plus-lg me-1"></i> Nuevo Proveedor</button>
                             </div>
@@ -242,7 +242,7 @@ class UserManager {
                 <div class="tab-pane fade ${activeTab === 'tab-profile' ? 'show active' : ''}" id="pills-profile">
                     <div class="row g-4">
                         <div class="col-md-7">
-                            <div class="card shadow-sm border-0">
+                            <div class="card shadow-sm border-0 mb-4">
                                 <div class="card-header bg-body fw-bold py-3"><i class="bi bi-sliders me-2"></i> Configuración del Negocio</div>
                                 <div class="card-body">
                                     <form id="formBusinessProfile" onsubmit="User.saveBusinessProfile(event)">
@@ -274,10 +274,37 @@ class UserManager {
                                                 <input type="color" class="form-control form-control-color w-100" name="branding_color" value="${currentBiz.branding_color || '#0d6efd'}">
                                             </div>
                                         </div>
+
+                                        <!-- Vista del Logo del Comercio -->
                                         <div class="mb-3">
-                                            <label class="form-label fw-semibold">Logo del Comercio (PNG / JPG)</label>
-                                            <input type="file" class="form-control" accept="image/png, image/jpeg" onchange="User.handleLogoChange(event)">
+                                            <label class="form-label fw-semibold">Logo del Comercio</label>
+                                            <div class="d-flex align-items-center gap-3 p-3 bg-light rounded border mb-2">
+                                                ${currentBiz.logo_url ? 
+                                                    `<img src="${currentBiz.logo_url}" alt="Logo Comercio" class="rounded border bg-white p-1" style="height: 60px; width: 120px; object-fit: contain;">` :
+                                                    `<div class="bg-secondary text-white rounded d-flex align-items-center justify-content-center" style="width:60px; height:60px;"><i class="bi bi-image fs-3"></i></div>`
+                                                }
+                                                <div class="flex-grow-1">
+                                                    <span class="fw-bold d-block small mb-1">${currentBiz.logo_url ? '✓ Logo actualmente activo' : 'Sin logo personalizado (Cargar abajo)'}</span>
+                                                    <input type="file" class="form-control form-control-sm" accept="image/png, image/jpeg" onchange="User.handleLogoChange(event)">
+                                                </div>
+                                            </div>
                                         </div>
+
+                                        <!-- Personalización de Encabezado y Footer en Reportes PDF -->
+                                        <div class="card bg-light border-0 mb-4">
+                                            <div class="card-body">
+                                                <h6 class="fw-bold text-danger mb-2"><i class="bi bi-file-earmark-pdf-fill me-1"></i> Personalizar Encabezado y Pie de Reportes PDF</h6>
+                                                <div class="mb-3">
+                                                    <label class="form-label small fw-semibold">Encabezado Personalizado PDF (Debajo del nombre)</label>
+                                                    <textarea class="form-control form-control-sm" name="pdf_header_text" rows="2" placeholder="Ej: RIF: J-12345678-9 | Sucursal Principal | Tlf: 0414-0000000">${currentBiz.pdf_header_text || ''}</textarea>
+                                                </div>
+                                                <div class="mb-0">
+                                                    <label class="form-label small fw-semibold">Pie de Página Personalizado PDF (Al final de la hoja)</label>
+                                                    <textarea class="form-control form-control-sm" name="pdf_footer_text" rows="2" placeholder="Ej: Documento expedido electrónicamente. ¡Gracias por preferirnos!">${currentBiz.pdf_footer_text || ''}</textarea>
+                                                </div>
+                                            </div>
+                                        </div>
+
                                         <button type="submit" class="btn btn-primary"><i class="bi bi-save me-1"></i> Guardar Cambios del Perfil</button>
                                     </form>
                                 </div>
@@ -733,10 +760,12 @@ class UserManager {
     openNewSaleModal() {
         this.saleCartItems = [];
         const clientSearch = document.getElementById("saleClientSearch");
+        const productSearch = document.getElementById("saleProductSearch");
         if (clientSearch) clientSearch.value = "";
+        if (productSearch) productSearch.value = "";
 
         this.filterSaleClientsSelect("");
-        this.populateSaleProductsSelect();
+        this.filterSaleProductsSelect("");
         this.renderSaleCart();
 
         const modal = new bootstrap.Modal(document.getElementById("modalNewSale"));
@@ -758,14 +787,21 @@ class UserManager {
             '<option value="" disabled>No se encontraron clientes coincidentes</option>';
     }
 
-    populateSaleProductsSelect() {
+    filterSaleProductsSelect(query = "") {
         const productSelect = document.getElementById("saleProductSelect");
         if (!productSelect || !Auth.currentBusiness) return;
 
+        const q = query.toLowerCase().trim();
         const products = DB.getLocalTable("products").filter(p => p.business_id === Auth.currentBusiness.id);
-        productSelect.innerHTML = products.map(p => 
-            `<option value="${p.id}">${p.name} - Stock: ${p.quantity} - $${p.sale_price.toFixed(2)}</option>`
-        ).join("");
+        const filtered = q ? products.filter(p => 
+            (p.name && p.name.toLowerCase().includes(q)) ||
+            (p.category && p.category.toLowerCase().includes(q)) ||
+            (p.description && p.description.toLowerCase().includes(q))
+        ) : products;
+
+        productSelect.innerHTML = filtered.length > 0 ?
+            filtered.map((p, i) => `<option value="${p.id}" ${i === 0 ? 'selected' : ''}>${p.name} - Stock: ${p.quantity} - $${p.sale_price.toFixed(2)}</option>`).join("") :
+            '<option value="" disabled>No se encontraron productos coincidentes</option>';
     }
 
     adjustSaleTempQty(delta) {
@@ -972,24 +1008,50 @@ class UserManager {
 
     openNewPurchaseModal() {
         this.purchaseCartItems = [];
-        const supplierSelect = document.getElementById("purchaseSupplierSelect");
-        const suppliers = DB.getLocalTable("suppliers").filter(s => s.business_id === Auth.currentBusiness.id);
-        supplierSelect.innerHTML = suppliers.map(s => `<option value="${s.id}">${s.name}</option>`).join("");
+        const supplierSearch = document.getElementById("purchaseSupplierSearch");
+        const productSearch = document.getElementById("purchaseProductSearch");
+        if (supplierSearch) supplierSearch.value = "";
+        if (productSearch) productSearch.value = "";
 
-        this.populatePurchaseProductsSelect();
+        this.filterPurchaseSuppliersSelect("");
+        this.filterPurchaseProductsSelect("");
         this.renderPurchaseCart();
 
         const modal = new bootstrap.Modal(document.getElementById("modalNewPurchase"));
         modal.show();
     }
 
-    populatePurchaseProductsSelect() {
+    filterPurchaseSuppliersSelect(query = "") {
+        const supplierSelect = document.getElementById("purchaseSupplierSelect");
+        if (!supplierSelect || !Auth.currentBusiness) return;
+        const q = query.toLowerCase().trim();
+        const suppliers = DB.getLocalTable("suppliers").filter(s => s.business_id === Auth.currentBusiness.id);
+        const filtered = q ? suppliers.filter(s => 
+            (s.name && s.name.toLowerCase().includes(q)) ||
+            (s.phone && s.phone.toLowerCase().includes(q)) ||
+            (s.email && s.email.toLowerCase().includes(q))
+        ) : suppliers;
+
+        supplierSelect.innerHTML = filtered.length > 0 ? 
+            filtered.map((s, i) => `<option value="${s.id}" ${i === 0 ? 'selected' : ''}>${s.name} ${s.phone ? '(' + s.phone + ')' : ''}</option>`).join("") :
+            '<option value="" disabled>No se encontraron proveedores coincidentes</option>';
+    }
+
+    filterPurchaseProductsSelect(query = "") {
         const productSelect = document.getElementById("purchaseProductSelect");
         if (!productSelect || !Auth.currentBusiness) return;
+
+        const q = query.toLowerCase().trim();
         const products = DB.getLocalTable("products").filter(p => p.business_id === Auth.currentBusiness.id);
-        productSelect.innerHTML = products.map(p => 
-            `<option value="${p.id}">${p.name} (Stock: ${p.quantity}) - Costo Actual: $${p.purchase_price.toFixed(2)}</option>`
-        ).join("");
+        const filtered = q ? products.filter(p => 
+            (p.name && p.name.toLowerCase().includes(q)) ||
+            (p.category && p.category.toLowerCase().includes(q)) ||
+            (p.description && p.description.toLowerCase().includes(q))
+        ) : products;
+
+        productSelect.innerHTML = filtered.length > 0 ? 
+            filtered.map((p, i) => `<option value="${p.id}" ${i === 0 ? 'selected' : ''}>${p.name} (Stock: ${p.quantity}) - Costo: $${p.purchase_price.toFixed(2)}</option>`).join("") :
+            '<option value="" disabled>No se encontraron productos coincidentes</option>';
     }
 
     adjustPurchaseTempQty(delta) {
@@ -1209,17 +1271,27 @@ class UserManager {
             businesses[idx].address = form.address.value;
             businesses[idx].website = form.website.value;
             businesses[idx].branding_color = form.branding_color.value;
+            businesses[idx].pdf_header_text = form.pdf_header_text ? form.pdf_header_text.value : "";
+            businesses[idx].pdf_footer_text = form.pdf_footer_text ? form.pdf_footer_text.value : "";
 
-            await DB.query(
-                `UPDATE businesses SET name = ?, phone = ?, email = ?, address = ?, website = ?, branding_color = ? WHERE id = ?`,
-                [businesses[idx].name, businesses[idx].phone, businesses[idx].email, businesses[idx].address, businesses[idx].website, businesses[idx].branding_color, bizId]
-            );
+            try {
+                await DB.query(
+                    `UPDATE businesses SET name = ?, phone = ?, email = ?, address = ?, website = ?, branding_color = ?, pdf_header_text = ?, pdf_footer_text = ? WHERE id = ?`,
+                    [businesses[idx].name, businesses[idx].phone, businesses[idx].email, businesses[idx].address, businesses[idx].website, businesses[idx].branding_color, businesses[idx].pdf_header_text, businesses[idx].pdf_footer_text, bizId]
+                );
+            } catch (e) {
+                await DB.query(
+                    `UPDATE businesses SET name = ?, phone = ?, email = ?, address = ?, website = ?, branding_color = ? WHERE id = ?`,
+                    [businesses[idx].name, businesses[idx].phone, businesses[idx].email, businesses[idx].address, businesses[idx].website, businesses[idx].branding_color, bizId]
+                );
+            }
+
             DB.setLocalTable("businesses", businesses);
             Auth.currentBusiness = businesses[idx];
             sessionStorage.setItem("inv_current_biz", JSON.stringify(businesses[idx]));
         }
 
-        alert("¡Perfil del negocio actualizado con éxito!");
+        alert("¡Perfil del negocio y preferencias de PDF actualizadas con éxito!");
         AppUI.renderApp();
     }
 

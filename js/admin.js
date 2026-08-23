@@ -4,6 +4,12 @@
  */
 
 class AdminManager {
+    constructor() {
+        this.paymentsSearchQuery = "";
+        this.businessesSearchQuery = "";
+        this.usersSearchQuery = "";
+    }
+
     /**
      * Renderiza el Panel Principal de Administración
      */
@@ -68,10 +74,13 @@ class AdminManager {
                     <button class="nav-link active" id="tab-payments-tab" data-bs-toggle="tab" data-bs-target="#tab-payments" type="button"><i class="bi bi-cash-stack me-1"></i> Membresías y Pagos</button>
                 </li>
                 <li class="nav-item">
-                    <button class="nav-link" id="tab-methods-tab" data-bs-toggle="tab" data-bs-target="#tab-methods" type="button"><i class="bi bi-bank me-1"></i> Formas de Pago</button>
+                    <button class="nav-link" id="tab-users-tab" data-bs-toggle="tab" data-bs-target="#tab-users" type="button"><i class="bi bi-person-lines-fill me-1"></i> Registro de Usuarios (${stats.totalUsers})</button>
                 </li>
                 <li class="nav-item">
-                    <button class="nav-link" id="tab-clients-tab" data-bs-toggle="tab" data-bs-target="#tab-clients" type="button"><i class="bi bi-shop me-1"></i> Comercios y Licencias</button>
+                    <button class="nav-link" id="tab-clients-tab" data-bs-toggle="tab" data-bs-target="#tab-clients" type="button"><i class="bi bi-shop me-1"></i> Comercios y Licencias (${stats.totalBusinesses})</button>
+                </li>
+                <li class="nav-item">
+                    <button class="nav-link" id="tab-methods-tab" data-bs-toggle="tab" data-bs-target="#tab-methods" type="button"><i class="bi bi-bank me-1"></i> Formas de Pago</button>
                 </li>
                 <li class="nav-item">
                     <button class="nav-link" id="tab-connectivity-tab" data-bs-toggle="tab" data-bs-target="#tab-connectivity" type="button"><i class="bi bi-wifi me-1"></i> Conectividad API</button>
@@ -115,7 +124,10 @@ class AdminManager {
                     <div class="card shadow-sm border-0">
                         <div class="card-header bg-body text-body d-flex justify-content-between align-items-center">
                             <h5 class="mb-0"><i class="bi bi-clock-history me-2"></i> Reportes de Pago Pendientes de Verificación</h5>
-                            <button class="btn btn-sm btn-outline-primary" onclick="Admin.renderAdminDashboard('${containerId}')"><i class="bi bi-arrow-clockwise me-1"></i> Actualizar</button>
+                            <div class="d-flex align-items-center">
+                                <input type="text" id="adminPaymentsSearchInput" class="form-control form-control-sm me-2" style="max-width: 320px;" placeholder="🔍 Buscar pago por usuario, ref, banco..." oninput="Admin.filterPayments(this.value)">
+                                <button class="btn btn-sm btn-outline-primary" onclick="Admin.renderAdminDashboard('${containerId}')"><i class="bi bi-arrow-clockwise me-1"></i> Actualizar</button>
+                            </div>
                         </div>
                         <div class="card-body p-0">
                             <div class="table-responsive">
@@ -140,16 +152,31 @@ class AdminManager {
                     </div>
                 </div>
 
-                <!-- 2. FORMAS DE PAGO -->
-                <div class="tab-pane fade" id="tab-methods">
-                    <div class="card shadow-sm border-0 mb-4">
+                <!-- 2. REGISTRO DE USUARIOS EN LA PLATAFORMA (ESTADÍSTICAS & CONTROL) -->
+                <div class="tab-pane fade" id="tab-users">
+                    <div class="card shadow-sm border-0">
                         <div class="card-header bg-body text-body d-flex justify-content-between align-items-center">
-                            <h5 class="mb-0"><i class="bi bi-wallet2 me-2"></i> Gestión de Formas de Pago Aceptadas (VES / USD)</h5>
-                            <button class="btn btn-sm btn-primary" onclick="Admin.openNewPaymentMethodModal()"><i class="bi bi-plus-circle me-1"></i> Nueva Forma de Pago</button>
+                            <h5 class="mb-0"><i class="bi bi-person-lines-fill me-2 text-success"></i> Usuarios Registrados en la Plataforma</h5>
+                            <input type="text" id="adminUsersSearchInput" class="form-control form-control-sm" style="max-width: 320px;" placeholder="🔍 Buscar por nombre, correo, rol o fecha..." oninput="Admin.filterUsers(this.value)">
                         </div>
-                        <div class="card-body">
-                            <div class="row g-3" id="adminPaymentMethodsContainer">
-                                <!-- Cards de métodos de pago -->
+                        <div class="card-body p-0">
+                            <div class="table-responsive">
+                                <table class="table table-striped align-middle mb-0">
+                                    <thead class="table-light">
+                                        <tr>
+                                            <th>#</th>
+                                            <th>Nombre Completo</th>
+                                            <th>Correo Electrónico</th>
+                                            <th>Rol de Cuenta</th>
+                                            <th>Fecha de Registro</th>
+                                            <th>Membresía / Estado Prueba</th>
+                                            <th class="text-end">Estado</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="adminUsersTableBody">
+                                        <!-- Usuarios dinámicos -->
+                                    </tbody>
+                                </table>
                             </div>
                         </div>
                     </div>
@@ -158,8 +185,9 @@ class AdminManager {
                 <!-- 3. COMERCIOS Y LICENCIAS -->
                 <div class="tab-pane fade" id="tab-clients">
                     <div class="card shadow-sm border-0">
-                        <div class="card-header bg-body text-body">
+                        <div class="card-header bg-body text-body d-flex justify-content-between align-items-center">
                             <h5 class="mb-0"><i class="bi bi-buildings me-2"></i> Directorio de Comercios Registrados</h5>
+                            <input type="text" id="adminBusinessesSearchInput" class="form-control form-control-sm" style="max-width: 320px;" placeholder="🔍 Buscar comercio por nombre o correo..." oninput="Admin.filterBusinesses(this.value)">
                         </div>
                         <div class="card-body p-0">
                             <div class="table-responsive">
@@ -182,7 +210,22 @@ class AdminManager {
                     </div>
                 </div>
 
-                <!-- 4. CONECTIVIDAD API -->
+                <!-- 4. FORMAS DE PAGO -->
+                <div class="tab-pane fade" id="tab-methods">
+                    <div class="card shadow-sm border-0 mb-4">
+                        <div class="card-header bg-body text-body d-flex justify-content-between align-items-center">
+                            <h5 class="mb-0"><i class="bi bi-wallet2 me-2"></i> Gestión de Formas de Pago Aceptadas (VES / USD)</h5>
+                            <button class="btn btn-sm btn-primary" onclick="Admin.openNewPaymentMethodModal()"><i class="bi bi-plus-circle me-1"></i> Nueva Forma de Pago</button>
+                        </div>
+                        <div class="card-body">
+                            <div class="row g-3" id="adminPaymentMethodsContainer">
+                                <!-- Cards de métodos de pago -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 5. CONECTIVIDAD API -->
                 <div class="tab-pane fade" id="tab-connectivity">
                     <div class="card shadow-sm border-0">
                         <div class="card-header bg-body text-body">
@@ -211,7 +254,7 @@ class AdminManager {
                     </div>
                 </div>
 
-                <!-- 5. INCIDENCIAS -->
+                <!-- 6. INCIDENCIAS -->
                 <div class="tab-pane fade" id="tab-incidents">
                     <div class="card shadow-sm border-0">
                         <div class="card-header bg-body text-body">
@@ -242,8 +285,9 @@ class AdminManager {
         `;
 
         await this.loadAdminPaymentsTable();
-        await this.loadAdminPaymentMethods();
+        await this.loadAdminUsersTable();
         await this.loadAdminBusinessesTable();
+        await this.loadAdminPaymentMethods();
         await this.loadAdminIncidentsTable();
     }
 
@@ -261,16 +305,44 @@ class AdminManager {
         };
     }
 
+    // --- BÚSQUEDAS EN TIEMPO REAL (ADMIN) ---
+    filterPayments(query = "") {
+        this.paymentsSearchQuery = query.toLowerCase().trim();
+        this.loadAdminPaymentsTable();
+    }
+
+    filterBusinesses(query = "") {
+        this.businessesSearchQuery = query.toLowerCase().trim();
+        this.loadAdminBusinessesTable();
+    }
+
+    filterUsers(query = "") {
+        this.usersSearchQuery = query.toLowerCase().trim();
+        this.loadAdminUsersTable();
+    }
+
     async loadAdminPaymentsTable() {
         const tbody = document.getElementById("adminPaymentsTableBody");
         if (!tbody) return;
 
-        const payments = DB.getLocalTable("payments");
+        let payments = DB.getLocalTable("payments");
         const users = DB.getLocalTable("users");
         const methods = DB.getLocalTable("payment_methods");
 
+        if (this.paymentsSearchQuery) {
+            const q = this.paymentsSearchQuery;
+            payments = payments.filter(p => {
+                const u = users.find(usr => usr.id === p.user_id) || {};
+                const m = methods.find(mth => mth.id === p.payment_method_id) || {};
+                return (u.name && u.name.toLowerCase().includes(q)) ||
+                       (u.email && u.email.toLowerCase().includes(q)) ||
+                       (m.title && m.title.toLowerCase().includes(q)) ||
+                       (p.reference_number && p.reference_number.toLowerCase().includes(q));
+            });
+        }
+
         if (payments.length === 0) {
-            tbody.innerHTML = `<tr><td colspan="7" class="text-center text-muted py-4">No hay reportes de pago pendientes.</td></tr>`;
+            tbody.innerHTML = `<tr><td colspan="7" class="text-center text-muted py-4">No se encontraron reportes de pago.</td></tr>`;
             return;
         }
 
@@ -308,7 +380,6 @@ class AdminManager {
         DB.setLocalTable("payments", payments);
 
         if (newStatus === "aprobado") {
-            // Extender membresía del usuario por 30 días continuos
             const userId = payments[idx].user_id;
             const users = DB.getLocalTable("users");
             const uIdx = users.findIndex(u => u.id === userId);
@@ -325,6 +396,57 @@ class AdminManager {
         }
 
         this.loadAdminPaymentsTable();
+    }
+
+    async loadAdminUsersTable() {
+        const tbody = document.getElementById("adminUsersTableBody");
+        if (!tbody) return;
+
+        let users = DB.getLocalTable("users");
+
+        if (this.usersSearchQuery) {
+            const q = this.usersSearchQuery;
+            users = users.filter(u => 
+                (u.name && u.name.toLowerCase().includes(q)) ||
+                (u.email && u.email.toLowerCase().includes(q)) ||
+                (u.role && u.role.toLowerCase().includes(q)) ||
+                (u.created_at && u.created_at.includes(q))
+            );
+        }
+
+        if (users.length === 0) {
+            tbody.innerHTML = `<tr><td colspan="7" class="text-center text-muted py-4">No hay usuarios registrados que coincidan con la búsqueda.</td></tr>`;
+            return;
+        }
+
+        tbody.innerHTML = users.map((u, i) => {
+            const regDate = u.created_at || u.trial_starts_at ? new Date(u.created_at || u.trial_starts_at).toLocaleDateString() : "Reciente";
+            const roleBadge = u.role === "superadmin" ? '<span class="badge bg-danger">SuperAdmin</span>' : '<span class="badge bg-primary">Usuario / Dueño</span>';
+
+            let statusBadge = '<span class="badge bg-success">En Período de Prueba</span>';
+            if (u.membership_expires_at) {
+                const exp = new Date(u.membership_expires_at);
+                if (exp > new Date()) {
+                    statusBadge = `<span class="badge bg-success">Membresía Activa hasta ${exp.toLocaleDateString()}</span>`;
+                } else {
+                    statusBadge = `<span class="badge bg-danger">Membresía Vencida (${exp.toLocaleDateString()})</span>`;
+                }
+            }
+
+            return `
+                <tr>
+                    <td>${i + 1}</td>
+                    <td><strong>${u.name}</strong></td>
+                    <td><code>${u.email}</code></td>
+                    <td>${roleBadge}</td>
+                    <td><i class="bi bi-calendar-event me-1 text-muted"></i> ${regDate}</td>
+                    <td>${statusBadge}</td>
+                    <td class="text-end">
+                        <span class="badge bg-success">Activo</span>
+                    </td>
+                </tr>
+            `;
+        }).join("");
     }
 
     async loadAdminPaymentMethods() {
@@ -383,19 +505,43 @@ class AdminManager {
         const tbody = document.getElementById("adminBusinessesTableBody");
         if (!tbody) return;
 
-        const businesses = DB.getLocalTable("businesses");
+        let businesses = DB.getLocalTable("businesses");
         const users = DB.getLocalTable("users");
+
+        if (this.businessesSearchQuery) {
+            const q = this.businessesSearchQuery;
+            businesses = businesses.filter(b => {
+                const owner = users.find(u => u.id === b.owner_user_id) || {};
+                return (b.name && b.name.toLowerCase().includes(q)) ||
+                       (b.email && b.email.toLowerCase().includes(q)) ||
+                       (owner.name && owner.name.toLowerCase().includes(q)) ||
+                       (owner.email && owner.email.toLowerCase().includes(q));
+            });
+        }
+
+        if (businesses.length === 0) {
+            tbody.innerHTML = `<tr><td colspan="5" class="text-center text-muted py-4">No se encontraron comercios registrados.</td></tr>`;
+            return;
+        }
 
         tbody.innerHTML = businesses.map(b => {
             const owner = users.find(u => u.id === b.owner_user_id) || { name: "Propietario", email: b.email || "N/A" };
             return `
                 <tr>
-                    <td><strong>${b.name}</strong><br><small class="text-muted">Categoría: ${b.category_preset || 'General'}</small></td>
+                    <td>
+                        <div class="d-flex align-items-center">
+                            ${b.logo_url ? `<img src="${b.logo_url}" class="rounded me-2 border" style="width: 32px; height: 32px; object-fit: contain;">` : '<div class="bg-primary text-white rounded me-2 d-flex align-items-center justify-content-center" style="width: 32px; height: 32px;"><i class="bi bi-building"></i></div>'}
+                            <div>
+                                <strong>${b.name}</strong><br>
+                                <small class="text-muted">Categoría: ${b.category_preset || 'General'}</small>
+                            </div>
+                        </div>
+                    </td>
                     <td>${owner.name}<br><small class="text-muted">${owner.email}</small></td>
                     <td>${b.phone || 'N/A'}</td>
-                    <td><span class="badge bg-success">Activo (Prueba / Membresía)</span></td>
+                    <td><span class="badge bg-success">Activo</span></td>
                     <td class="text-end">
-                        <button class="btn btn-sm btn-outline-primary" onclick="alert('Editar comercio: ${b.name}')"><i class="bi bi-pencil"></i> Editar</button>
+                        <button class="btn btn-sm btn-outline-primary" onclick="alert('Comercio: ${b.name} registrado por ${owner.email}')"><i class="bi bi-eye"></i> Detalles</button>
                     </td>
                 </tr>
             `;
@@ -447,33 +593,27 @@ class AdminManager {
 
     async saveSystemSettings(event) {
         event.preventDefault();
-        const priceVal = parseFloat(document.getElementById("adminMembershipPriceInput").value || 10.00);
-        const rateVal = parseFloat(document.getElementById("adminBcvRateInput").value || 36.50);
+        const priceVal = parseFloat(document.getElementById("adminMembershipPriceInput").value || 15.00);
+        const bcvVal = parseFloat(document.getElementById("adminBcvRateInput").value || 40.00);
 
         CONFIG.MEMBERSHIP_PRICE_USD = priceVal;
-        CONFIG.DEFAULT_BCV_RATE = rateVal;
+        CONFIG.DEFAULT_BCV_RATE = bcvVal;
 
-        // Guardar en localStorage (inmediato)
-        DB.setLocalRecord("settings", { key_name: "membership_price_usd", value: String(priceVal) });
-        DB.setLocalRecord("settings", { key_name: "bcv_rate", value: String(rateVal) });
-
-        // Guardar también en Turso (persistencia global para todos los dispositivos)
-        try {
-            await DB.query(
-                "INSERT OR REPLACE INTO settings (key_name, value) VALUES (?, ?)",
-                ["membership_price_usd", String(priceVal)]
-            );
-            await DB.query(
-                "INSERT OR REPLACE INTO settings (key_name, value) VALUES (?, ?)",
-                ["bcv_rate", String(rateVal)]
-            );
-        } catch (e) {
-            console.warn("No se pudo sincronizar con Turso, se guardó solo en localStorage:", e.message);
+        const landingPriceEl = document.getElementById("membershipPriceLanding");
+        if (landingPriceEl) {
+            landingPriceEl.textContent = `${priceVal.toFixed(2)} USD`;
         }
 
-        // Actualizar el precio en la landing page
-        AppUI.updateLandingMembershipPrice(priceVal);
-        alert("¡Tarifas del sistema actualizadas correctamente! Precio de membresía: $" + priceVal.toFixed(2) + " USD/mes");
+        try {
+            await DB.query(
+                `INSERT OR REPLACE INTO settings (key_name, value) VALUES ('membership_price_usd', ?), ('bcv_rate', ?)`,
+                [priceVal.toString(), bcvVal.toString()]
+            );
+        } catch (e) {
+            console.warn("Could not save settings to Turso DB, saved to localStorage:", e);
+        }
+
+        alert(`¡Tarifas del sistema actualizadas exitosamente!\nNuevos valores:\nMembresía: $${priceVal.toFixed(2)} USD\nTasa BCV: ${bcvVal.toFixed(2)} Bs./USD`);
     }
 }
 
