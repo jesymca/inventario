@@ -128,6 +128,7 @@ const CONFIG = {
             title: "Binance Pay",
             bank_name: "BINANCE PAY",
             account_number: "PayID: 313993255",
+            wallet_address: "PayID: 313993255 | email: jose@jesuministrosymas.com.ve",
             holder_name: "José Herrera",
             email: "jose@jesuministrosymas.com.ve",
             phone: "+584141448515",
@@ -139,6 +140,7 @@ const CONFIG = {
             type: "USDT",
             title: "USDT Cripto (TRC20)",
             bank_name: "RED TRON (TRC20)",
+            account_number: "TR3PTVe5gnWuEo2topM594fkUb6ueMZPwn",
             wallet_address: "TR3PTVe5gnWuEo2topM594fkUb6ueMZPwn",
             holder_name: "José Herrera",
             is_active: 1
@@ -149,6 +151,8 @@ const CONFIG = {
             type: "Zinli",
             title: "ZINLI",
             bank_name: "ZINLI WALLET",
+            account_number: "herrejose@gmail.com",
+            wallet_address: "herrejose@gmail.com",
             email: "herrejose@gmail.com",
             holder_name: "José Herrera",
             is_active: 1

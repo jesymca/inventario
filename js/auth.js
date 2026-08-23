@@ -234,10 +234,15 @@ class AuthManager {
             }
 
             const loginResult = await this.handlePostLogin(user);
-            window.AppUI.renderApp();
+            if (window.AppUI && typeof window.AppUI.renderApp === "function") {
+                window.AppUI.renderApp();
+            } else if (typeof AppUI !== "undefined" && AppUI && typeof AppUI.renderApp === "function") {
+                AppUI.renderApp();
+            }
             return loginResult;
         } catch (err) {
-            alert("Error al iniciar sesión con Google: " + err.message);
+            console.error("Error en login Google:", err);
+            alert("Error al iniciar sesión con Google: " + (err.message || err));
         }
     }
 

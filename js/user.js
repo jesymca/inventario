@@ -1256,10 +1256,14 @@ class UserManager {
             detailsBox.style.display = "block";
             let html = `<strong class="text-primary d-block mb-1"><i class="bi bi-info-circle me-1"></i> Datos para efectuar el pago (${method.currency}):</strong>`;
             html += `<div class="bg-white p-2 rounded border">`;
-            if (method.bank_name) html += `<div class="mb-1"><strong>Banco / Entidad:</strong> ${method.bank_name}</div>`;
-            if (method.account_number) html += `<div class="mb-1"><strong>Cuenta / Teléfono / ID:</strong> <code class="fs-6">${method.account_number}</code></div>`;
+            if (method.bank_name) html += `<div class="mb-1"><strong>Banco / Plataforma:</strong> ${method.bank_name}</div>`;
+            if (method.account_number) html += `<div class="mb-1"><strong>Cuenta / Teléfono / ID / Correo:</strong> <code class="fs-6 text-break">${method.account_number}</code></div>`;
+            if (method.wallet_address && method.wallet_address !== method.account_number) {
+                html += `<div class="mb-1"><strong>Dirección / Billetera / Detalle:</strong> <code class="text-break">${method.wallet_address}</code></div>`;
+            } else if (!method.account_number && (method.wallet_address || method.email)) {
+                html += `<div class="mb-1"><strong>Billetera / Correo:</strong> <code class="text-break">${method.wallet_address || method.email}</code></div>`;
+            }
             if (method.holder_name) html += `<div class="mb-1"><strong>Titular:</strong> ${method.holder_name} ${method.holder_id ? '(' + method.holder_id + ')' : ''}</div>`;
-            if (method.wallet_address) html += `<div class="mb-1"><strong>Dirección / Billetera:</strong> <code class="text-break">${method.wallet_address}</code></div>`;
             html += `</div>`;
             detailsContent.innerHTML = html;
         }
