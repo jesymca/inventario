@@ -464,15 +464,38 @@ class AdminManager {
         const tbody = document.getElementById("adminUsersTableBody");
         if (!tbody) return;
 
-        let users = DB.getLocalTable("users");
+        let users = [];
+        try {
+            const res = await DB.query("SELECT * FROM users");
+            if (res && res.rows && res.rows.length > 0) {
+                users = res.rows;
+                users.forEach(u => DB.setLocalRecord("users", u));
+            } else {
+                users = DB.getLocalTable("users");
+            }
+        } catch (e) {
+            users = DB.getLocalTable("users");
+        }
+
+        // Combinar con LocalStorage para asegurar que cualquier registro local esté visible
+        const localUsers = DB.getLocalTable("users");
+        localUsers.forEach(lu => {
+            if (!users.some(u => u.id === lu.id || u.email.toLowerCase() === lu.email.toLowerCase())) {
+                users.push(lu);
+            }
+        });
+
+        // Ordenar por fecha más reciente
+        users.sort((a, b) => new Date(b.created_at || b.trial_starts_at || 0) - new Date(a.created_at || a.trial_starts_at || 0));
 
         if (this.usersSearchQuery) {
-            const q = this.usersSearchQuery;
+            const q = this.usersSearchQuery.toLowerCase();
             users = users.filter(u => 
                 (u.name && u.name.toLowerCase().includes(q)) ||
                 (u.email && u.email.toLowerCase().includes(q)) ||
                 (u.role && u.role.toLowerCase().includes(q)) ||
-                (u.created_at && u.created_at.includes(q))
+                (u.created_at && u.created_at.includes(q)) ||
+                (u.google_id && (q.includes("google") || u.google_id.toLowerCase().includes(q)))
             );
         }
 
@@ -482,14 +505,21 @@ class AdminManager {
         }
 
         tbody.innerHTML = users.map((u, i) => {
-            const regDate = u.created_at || u.trial_starts_at ? new Date(u.created_at || u.trial_starts_at).toLocaleDateString() : "Reciente";
+            const dateStr = u.created_at || u.trial_starts_at;
+            const regDate = dateStr ? new Date(dateStr).toLocaleDateString() + " " + new Date(dateStr).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : "Reciente";
             const roleBadge = u.role === "superadmin" ? '<span class="badge bg-danger">SuperAdmin</span>' : '<span class="badge bg-primary">Usuario / Dueño</span>';
 
-            let statusBadge = '<span class="badge bg-success">En Período de Prueba</span>';
+            // Distintivo de Método de Registro (Google vs Registro Directo)
+            const isGoogle = (u.google_id || (u.id && u.id.startsWith("usr_g_")));
+            const originBadge = isGoogle
+                ? '<span class="badge bg-danger text-white me-1"><i class="bi bi-google me-1"></i> Google OAuth</span>'
+                : '<span class="badge bg-secondary text-white me-1"><i class="bi bi-person-check me-1"></i> Directo</span>';
+
+            let statusBadge = '<span class="badge bg-info text-dark">En Prueba (15 días)</span>';
             if (u.membership_expires_at) {
                 const exp = new Date(u.membership_expires_at);
                 if (exp > new Date()) {
-                    statusBadge = `<span class="badge bg-success">Membresía Activa hasta ${exp.toLocaleDateString()}</span>`;
+                    statusBadge = `<span class="badge bg-success">Membresía Activa (${exp.toLocaleDateString()})</span>`;
                 } else {
                     statusBadge = `<span class="badge bg-danger">Membresía Vencida (${exp.toLocaleDateString()})</span>`;
                 }
@@ -498,7 +528,10 @@ class AdminManager {
             return `
                 <tr>
                     <td>${i + 1}</td>
-                    <td><strong>${u.name}</strong></td>
+                    <td>
+                        <strong>${u.name}</strong><br>
+                        ${originBadge}
+                    </td>
                     <td><code>${u.email}</code></td>
                     <td>${roleBadge}</td>
                     <td><i class="bi bi-calendar-event me-1 text-muted"></i> ${regDate}</td>

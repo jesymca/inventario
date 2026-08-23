@@ -197,10 +197,14 @@ class AuthManager {
                     created_at: now.toISOString()
                 };
 
-                await DB.query(
-                    `INSERT INTO users (id, google_id, name, email, role, trial_starts_at, is_active) VALUES (?, ?, ?, ?, ?, ?, 1)`,
-                    [user.id, user.google_id, user.name, user.email, user.role, user.trial_starts_at]
-                );
+                try {
+                    await DB.query(
+                        `INSERT INTO users (id, google_id, name, email, role, trial_starts_at, is_active, created_at) VALUES (?, ?, ?, ?, ?, ?, 1, ?)`,
+                        [user.id, user.google_id, user.name, user.email, user.role, user.trial_starts_at, user.created_at]
+                    );
+                } catch (e) {
+                    console.warn("Could not insert google user to Turso DB:", e);
+                }
                 DB.setLocalRecord("users", user);
 
                 // Crear Comercio Predeterminado
@@ -216,10 +220,12 @@ class AuthManager {
                     category_preset: "generico",
                     created_at: now.toISOString()
                 };
-                await DB.query(
-                    `INSERT INTO businesses (id, owner_user_id, name, address, phone, email, branding_color) VALUES (?, ?, ?, ?, ?, ?, ?)`,
-                    [defaultBiz.id, defaultBiz.owner_user_id, defaultBiz.name, defaultBiz.address, defaultBiz.phone, defaultBiz.email, defaultBiz.branding_color]
-                );
+                try {
+                    await DB.query(
+                        `INSERT INTO businesses (id, owner_user_id, name, address, phone, email, branding_color) VALUES (?, ?, ?, ?, ?, ?, ?)`,
+                        [defaultBiz.id, defaultBiz.owner_user_id, defaultBiz.name, defaultBiz.address, defaultBiz.phone, defaultBiz.email, defaultBiz.branding_color]
+                    );
+                } catch (e) {}
                 DB.setLocalRecord("businesses", defaultBiz);
 
                 const userRole = {
@@ -229,8 +235,19 @@ class AuthManager {
                     role: "owner",
                     created_at: now.toISOString()
                 };
-                await DB.query(`INSERT INTO user_business_roles (id, user_email, business_id, role) VALUES (?, ?, ?, ?)`, [userRole.id, user.email, defaultBiz.id, "owner"]);
+                try {
+                    await DB.query(`INSERT INTO user_business_roles (id, user_email, business_id, role) VALUES (?, ?, ?, ?)`, [userRole.id, user.email, defaultBiz.id, "owner"]);
+                } catch (e) {}
                 DB.setLocalRecord("user_business_roles", userRole);
+            } else {
+                // Si el usuario existía pero no tenía el google_id guardado
+                if (!user.google_id) {
+                    user.google_id = googleId;
+                    try {
+                        await DB.query("UPDATE users SET google_id = ? WHERE id = ?", [googleId, user.id]);
+                    } catch (e) {}
+                }
+                DB.setLocalRecord("users", user);
             }
 
             const loginResult = await this.handlePostLogin(user);
