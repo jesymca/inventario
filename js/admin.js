@@ -873,15 +873,55 @@ class AdminManager {
         const tbody = document.getElementById("adminBusinessesTableBody");
         if (!tbody) return;
 
-        let businesses = DB.getLocalTable("businesses");
-        const users = DB.getLocalTable("users");
+        let businesses = [];
+        let users = [];
+
+        try {
+            const bizRes = await DB.query("SELECT * FROM businesses");
+            if (bizRes && bizRes.rows && bizRes.rows.length > 0) {
+                businesses = bizRes.rows;
+                businesses.forEach(b => DB.setLocalRecord("businesses", b));
+            } else {
+                businesses = DB.getLocalTable("businesses");
+            }
+
+            const userRes = await DB.query("SELECT * FROM users");
+            if (userRes && userRes.rows && userRes.rows.length > 0) {
+                users = userRes.rows;
+                users.forEach(u => DB.setLocalRecord("users", u));
+            } else {
+                users = DB.getLocalTable("users");
+            }
+        } catch (e) {
+            businesses = DB.getLocalTable("businesses");
+            users = DB.getLocalTable("users");
+        }
+
+        // Combinar con LocalStorage para asegurar que cualquier negocio local esté visible
+        const localBiz = DB.getLocalTable("businesses");
+        localBiz.forEach(lb => {
+            if (!businesses.some(b => b.id === lb.id)) {
+                businesses.push(lb);
+            }
+        });
+
+        const localUsers = DB.getLocalTable("users");
+        localUsers.forEach(lu => {
+            if (!users.some(u => u.id === lu.id)) {
+                users.push(lu);
+            }
+        });
+
+        // Ordenar por fecha más reciente
+        businesses.sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0));
 
         if (this.businessesSearchQuery) {
-            const q = this.businessesSearchQuery;
+            const q = this.businessesSearchQuery.toLowerCase();
             businesses = businesses.filter(b => {
                 const owner = users.find(u => u.id === b.owner_user_id) || {};
                 return (b.name && b.name.toLowerCase().includes(q)) ||
                        (b.email && b.email.toLowerCase().includes(q)) ||
+                       (b.category_preset && b.category_preset.toLowerCase().includes(q)) ||
                        (owner.name && owner.name.toLowerCase().includes(q)) ||
                        (owner.email && owner.email.toLowerCase().includes(q));
             });
@@ -901,7 +941,7 @@ class AdminManager {
                             ${b.logo_url ? `<img src="${b.logo_url}" class="rounded me-2 border" style="width: 32px; height: 32px; object-fit: contain;">` : '<div class="bg-primary text-white rounded me-2 d-flex align-items-center justify-content-center" style="width: 32px; height: 32px;"><i class="bi bi-building"></i></div>'}
                             <div>
                                 <strong>${b.name}</strong><br>
-                                <small class="text-muted">Categoría: ${b.category_preset || 'General'}</small>
+                                <small class="text-muted">Categoría: ${b.category_preset || 'General'} ${b.rif ? '| RIF: ' + b.rif : ''}</small>
                             </div>
                         </div>
                     </td>
