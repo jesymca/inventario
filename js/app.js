@@ -18,29 +18,38 @@ class AppUIManager {
     }
 
     /**
-     * Carga el precio de membresía desde Turso (o localStorage) y actualiza el span en la landing
+     * Carga el precio de membresía y tasa BCV desde Turso (o localStorage) y actualiza la landing
      */
     async loadAndUpdateMembershipPrice() {
         try {
-            // Intentar leer desde Turso primero
+            // Intentar leer de Turso
             const result = await DB.query(
-                "SELECT value FROM settings WHERE key_name = 'membership_price_usd' LIMIT 1"
+                "SELECT key_name, value FROM settings WHERE key_name IN ('membership_price_usd', 'bcv_rate')"
             );
             if (result && result.rows && result.rows.length > 0) {
-                const val = result.rows[0].value;
-                const parsed = parseFloat(String(val).replace(/[^0-9.]/g, ''));
-                if (!isNaN(parsed) && parsed > 0) {
-                    CONFIG.MEMBERSHIP_PRICE_USD = parsed;
-                    // Sincronizar en localStorage también
-                    DB.setLocalRecord("settings", { key_name: "membership_price_usd", value: String(parsed) });
-                    this.updateLandingMembershipPrice(parsed);
-                    return;
-                }
+                result.rows.forEach(row => {
+                    if (row.key_name === 'membership_price_usd') {
+                        const parsed = parseFloat(String(row.value).replace(/[^0-9.]/g, ''));
+                        if (!isNaN(parsed) && parsed > 0) {
+                            CONFIG.MEMBERSHIP_PRICE_USD = parsed;
+                            DB.setLocalRecord("settings", { key_name: "membership_price_usd", value: String(parsed) });
+                        }
+                    }
+                    if (row.key_name === 'bcv_rate') {
+                        const parsed = parseFloat(String(row.value).replace(/[^0-9.]/g, ''));
+                        if (!isNaN(parsed) && parsed > 0) {
+                            CONFIG.DEFAULT_BCV_RATE = parsed;
+                            DB.setLocalRecord("settings", { key_name: "bcv_rate", value: String(parsed) });
+                        }
+                    }
+                });
+                this.updateLandingMembershipPrice(CONFIG.MEMBERSHIP_PRICE_USD);
+                return;
             }
         } catch (e) {
-            // Si Turso falla, usar localStorage
+            console.warn("Error al cargar tarifas desde Turso, usando valores locales:", e.message);
         }
-        // Fallback: leer de localStorage
+        // Fallback: leer de localStorage / CONFIG
         this.updateLandingMembershipPrice();
     }
 

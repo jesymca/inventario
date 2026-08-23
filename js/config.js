@@ -16,12 +16,14 @@ const CONFIG = {
         name: "José Herrera (SuperAdmin)"
     },
 
-    // Días de prueba gratuita por defecto
-    FREE_TRIAL_DAYS: 15,
-    _membership_price_usd: 10.00,
-    _default_bcv_rate: 36.50,
+    // Tarifas del sistema (con valores dinámicos y respaldo)
+    _membership_price_usd: null,
+    _default_bcv_rate: null,
 
     get MEMBERSHIP_PRICE_USD() {
+        if (this._membership_price_usd !== null && !isNaN(this._membership_price_usd) && this._membership_price_usd > 0) {
+            return this._membership_price_usd;
+        }
         try {
             const raw = localStorage.getItem("inv_db_settings");
             if (raw) {
@@ -29,18 +31,26 @@ const CONFIG = {
                 const found = settings.find(s => s.key_name === "membership_price_usd");
                 if (found && found.value !== undefined && found.value !== null) {
                     const parsed = parseFloat(String(found.value).replace(/[^0-9.]/g, ''));
-                    if (!isNaN(parsed) && parsed > 0) return parsed;
+                    if (!isNaN(parsed) && parsed > 0) {
+                        this._membership_price_usd = parsed;
+                        return parsed;
+                    }
                 }
             }
         } catch (e) {}
-        return this._membership_price_usd;
+        return 10.00;
     },
     set MEMBERSHIP_PRICE_USD(val) {
         const parsed = parseFloat(String(val).replace(/[^0-9.]/g, ''));
-        if (!isNaN(parsed)) this._membership_price_usd = parsed;
+        if (!isNaN(parsed) && parsed > 0) {
+            this._membership_price_usd = parsed;
+        }
     },
 
     get DEFAULT_BCV_RATE() {
+        if (this._default_bcv_rate !== null && !isNaN(this._default_bcv_rate) && this._default_bcv_rate > 0) {
+            return this._default_bcv_rate;
+        }
         try {
             const raw = localStorage.getItem("inv_db_settings");
             if (raw) {
@@ -48,15 +58,20 @@ const CONFIG = {
                 const found = settings.find(s => s.key_name === "bcv_rate");
                 if (found && found.value !== undefined && found.value !== null) {
                     const parsed = parseFloat(String(found.value).replace(/[^0-9.]/g, ''));
-                    if (!isNaN(parsed) && parsed > 0) return parsed;
+                    if (!isNaN(parsed) && parsed > 0) {
+                        this._default_bcv_rate = parsed;
+                        return parsed;
+                    }
                 }
             }
         } catch (e) {}
-        return this._default_bcv_rate;
+        return 36.50;
     },
     set DEFAULT_BCV_RATE(val) {
         const parsed = parseFloat(String(val).replace(/[^0-9.]/g, ''));
-        if (!isNaN(parsed)) this._default_bcv_rate = parsed;
+        if (!isNaN(parsed) && parsed > 0) {
+            this._default_bcv_rate = parsed;
+        }
     },
 
     // Credenciales Turso (libSQL)
