@@ -714,9 +714,9 @@
                             </div>
                         </div>
                         <div class="mb-3">
-                            <label class="form-label fw-semibold text-primary"><i class="bi bi-camera me-1"></i> Adjuntar Capture / Comprobante de Pago</label>
-                            <input type="file" id="paymentProofFile" class="form-control" accept="image/png, image/jpeg, image/webp, application/pdf" required>
-                            <div class="form-text small">Sube una captura de pantalla o comprobante (JPG, PNG o PDF) emitido por tu banco o plataforma de pago.</div>
+                            <label class="form-label fw-semibold text-primary"><i class="bi bi-camera me-1"></i> Adjuntar Capture / Comprobante (Imagen PNG o JPG)</label>
+                            <input type="file" id="paymentProofFile" class="form-control" accept="image/png, image/jpeg, image/webp" required>
+                            <div class="form-text small">Sube la captura de pantalla o foto de tu pago en formato de imagen (PNG, JPG o WEBP).</div>
                         </div>
                         <button type="submit" class="btn btn-success w-100 py-2 fs-6 fw-bold"><i class="bi bi-cloud-arrow-up me-1"></i> Enviar Reporte con Comprobante</button>
                     </form>
@@ -803,19 +803,96 @@
         </div>
     </div>
 
+    <!-- 16. MODAL EDITAR FORMA DE PAGO (ADMIN) -->
+    <div class="modal fade" id="modalEditPaymentMethod" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header bg-warning text-dark">
+                    <h5 class="modal-title fw-bold"><i class="bi bi-pencil-square me-2"></i> Editar Forma de Pago (Admin)</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <form onsubmit="Admin.saveEditPaymentMethod(event)">
+                        <input type="hidden" name="id" id="editPaymentMethodId">
+                        <div class="row g-2 mb-3">
+                            <div class="col-md-6">
+                                <label class="form-label fw-semibold">Moneda</label>
+                                <select name="currency" id="editPaymentMethodCurrency" class="form-select" required>
+                                    <option value="VES">Bolívares (VES)</option>
+                                    <option value="USD">Dólares (USD)</option>
+                                </select>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label fw-semibold">Tipo de Medio</label>
+                                <select name="type" id="editPaymentMethodType" class="form-select" required>
+                                    <option value="PagoMovil">PagoMóvil</option>
+                                    <option value="Transferencia">Transferencia Bancaria</option>
+                                    <option value="Binance">Binance Pay</option>
+                                    <option value="USDT">USDT TRC20</option>
+                                    <option value="Zinli">ZINLI</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label fw-semibold">Título del Método</label>
+                            <input type="text" name="title" id="editPaymentMethodTitle" class="form-control" required>
+                        </div>
+                        <div class="row g-2 mb-3">
+                            <div class="col-md-6">
+                                <label class="form-label fw-semibold">Banco / Plataforma</label>
+                                <input type="text" name="bank_name" id="editPaymentMethodBankName" class="form-control">
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label fw-semibold">Cuenta / ID / Teléfono</label>
+                                <input type="text" name="account_number" id="editPaymentMethodAccountNumber" class="form-control">
+                            </div>
+                        </div>
+                        <div class="row g-2 mb-3">
+                            <div class="col-md-6">
+                                <label class="form-label fw-semibold">Nombre Titular</label>
+                                <input type="text" name="holder_name" id="editPaymentMethodHolderName" class="form-control">
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label fw-semibold">Cédula / RIF Titular</label>
+                                <input type="text" name="holder_id" id="editPaymentMethodHolderId" class="form-control">
+                            </div>
+                        </div>
+                        <div class="row g-2 mb-3">
+                            <div class="col-md-6">
+                                <label class="form-label fw-semibold">Billetera / Wallet (si aplica)</label>
+                                <input type="text" name="wallet_address" id="editPaymentMethodWalletAddress" class="form-control">
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label fw-semibold">Estado</label>
+                                <select name="is_active" id="editPaymentMethodIsActive" class="form-select">
+                                    <option value="1">Activo</option>
+                                    <option value="0">Inactivo / Oculto</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="d-flex gap-2">
+                            <button type="button" class="btn btn-outline-danger" onclick="Admin.deletePaymentMethod()"><i class="bi bi-trash me-1"></i> Eliminar</button>
+                            <button type="submit" class="btn btn-warning flex-grow-1 fw-bold"><i class="bi bi-save me-1"></i> Guardar Cambios</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Bootstrap 5.3 JS Bundle (CDN) -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script>
 
     <!-- Scripts del Sistema -->
-    <script src="./js/config.js?v=1.0.7"></script>
-    <script src="./js/db.js?v=1.0.7"></script>
-    <script src="./js/storage.js?v=1.0.7"></script>
-    <script src="./js/pdf_reports.js?v=1.0.7"></script>
-    <script src="./js/import_export.js?v=1.0.7"></script>
-    <script src="./js/auth.js?v=1.0.7"></script>
-    <script src="./js/admin.js?v=1.0.7"></script>
-    <script src="./js/user.js?v=1.0.7"></script>
-    <script src="./js/presets.js?v=1.0.7"></script>
-    <script src="./js/app.js?v=1.0.7"></script>
+    <script src="./js/config.js?v=1.0.8"></script>
+    <script src="./js/db.js?v=1.0.8"></script>
+    <script src="./js/storage.js?v=1.0.8"></script>
+    <script src="./js/pdf_reports.js?v=1.0.8"></script>
+    <script src="./js/import_export.js?v=1.0.8"></script>
+    <script src="./js/auth.js?v=1.0.8"></script>
+    <script src="./js/admin.js?v=1.0.8"></script>
+    <script src="./js/user.js?v=1.0.8"></script>
+    <script src="./js/presets.js?v=1.0.8"></script>
+    <script src="./js/app.js?v=1.0.8"></script>
 </body>
 </html>

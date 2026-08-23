@@ -515,19 +515,30 @@ class AdminManager {
         if (!container) return;
 
         const methods = DB.getLocalTable("payment_methods");
+        if (methods.length === 0) {
+            container.innerHTML = `<div class="col-12 text-center text-muted py-4">No hay formas de pago configuradas.</div>`;
+            return;
+        }
+
         container.innerHTML = methods.map(m => `
             <div class="col-md-4">
                 <div class="card h-100 shadow-sm border-0">
-                    <div class="card-body">
-                        <div class="d-flex justify-content-between align-items-center mb-2">
-                            <h6 class="card-title fw-bold mb-0">${m.title}</h6>
-                            <span class="badge ${m.currency === 'USD' ? 'bg-success' : 'bg-primary'}">${m.currency}</span>
+                    <div class="card-body d-flex flex-column justify-content-between">
+                        <div>
+                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                <h6 class="card-title fw-bold mb-0">${m.title}</h6>
+                                <div>
+                                    <span class="badge ${Number(m.is_active) === 1 ? 'bg-success' : 'bg-secondary'} me-1">${Number(m.is_active) === 1 ? 'Activo' : 'Inactivo'}</span>
+                                    <span class="badge ${m.currency === 'USD' ? 'bg-success' : 'bg-primary'}">${m.currency}</span>
+                                </div>
+                            </div>
+                            <p class="small text-muted mb-1">Tipo: <strong>${m.type}</strong></p>
+                            ${m.bank_name ? `<p class="small mb-1">Banco: ${m.bank_name}</p>` : ''}
+                            ${m.account_number ? `<p class="small mb-1">Cuenta/ID/Tlf: <code>${m.account_number}</code></p>` : ''}
+                            ${m.holder_name ? `<p class="small mb-1">Titular: ${m.holder_name} (${m.holder_id || ''})</p>` : ''}
+                            ${m.wallet_address ? `<p class="small mb-1">Billetera: <code class="text-break">${m.wallet_address}</code></p>` : ''}
                         </div>
-                        <p class="small text-muted mb-1">Tipo: <strong>${m.type}</strong></p>
-                        ${m.bank_name ? `<p class="small mb-1">Banco: ${m.bank_name}</p>` : ''}
-                        ${m.account_number ? `<p class="small mb-1">Cuenta/ID: <code>${m.account_number}</code></p>` : ''}
-                        ${m.holder_name ? `<p class="small mb-1">Titular: ${m.holder_name} (${m.holder_id || ''})</p>` : ''}
-                        ${m.wallet_address ? `<p class="small mb-1">Billetera: <code class="text-break">${m.wallet_address}</code></p>` : ''}
+                        <button class="btn btn-sm btn-outline-warning w-100 mt-3 fw-bold" onclick="Admin.openEditPaymentMethodModal('${m.id}')"><i class="bi bi-pencil-square me-1"></i> Editar Método</button>
                     </div>
                 </div>
             </div>
@@ -555,10 +566,88 @@ class AdminManager {
             created_at: new Date().toISOString()
         };
 
+        try {
+            await DB.query(
+                `INSERT INTO payment_methods (id, currency, type, title, bank_name, account_number, holder_name, holder_id, is_active)
+                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                [newMethod.id, newMethod.currency, newMethod.type, newMethod.title, newMethod.bank_name, newMethod.account_number, newMethod.holder_name, newMethod.holder_id, 1]
+            );
+        } catch (e) {
+            console.warn("Saved to localStorage:", e);
+        }
+
         DB.setLocalRecord("payment_methods", newMethod);
         bootstrap.Modal.getInstance(document.getElementById("modalNewPaymentMethod")).hide();
         form.reset();
         alert("Nueva forma de pago creada con éxito.");
+        this.loadAdminPaymentMethods();
+    }
+
+    openEditPaymentMethodModal(methodId) {
+        const methods = DB.getLocalTable("payment_methods");
+        const m = methods.find(item => item.id === methodId);
+        if (!m) return alert("Método de pago no encontrado.");
+
+        document.getElementById("editPaymentMethodId").value = m.id;
+        document.getElementById("editPaymentMethodCurrency").value = m.currency || "VES";
+        document.getElementById("editPaymentMethodType").value = m.type || "PagoMovil";
+        document.getElementById("editPaymentMethodTitle").value = m.title || "";
+        document.getElementById("editPaymentMethodBankName").value = m.bank_name || "";
+        document.getElementById("editPaymentMethodAccountNumber").value = m.account_number || "";
+        document.getElementById("editPaymentMethodHolderName").value = m.holder_name || "";
+        document.getElementById("editPaymentMethodHolderId").value = m.holder_id || "";
+        document.getElementById("editPaymentMethodWalletAddress").value = m.wallet_address || "";
+        document.getElementById("editPaymentMethodIsActive").value = (m.is_active !== undefined ? m.is_active : 1).toString();
+
+        const modal = new bootstrap.Modal(document.getElementById("modalEditPaymentMethod"));
+        modal.show();
+    }
+
+    async saveEditPaymentMethod(event) {
+        event.preventDefault();
+        const form = event.target;
+        const methodId = document.getElementById("editPaymentMethodId").value;
+        const methods = DB.getLocalTable("payment_methods");
+        const idx = methods.findIndex(m => m.id === methodId);
+        if (idx < 0) return alert("Método de pago no encontrado.");
+
+        methods[idx].currency = form.currency.value;
+        methods[idx].type = form.type.value;
+        methods[idx].title = form.title.value;
+        methods[idx].bank_name = form.bank_name.value;
+        methods[idx].account_number = form.account_number.value;
+        methods[idx].holder_name = form.holder_name.value;
+        methods[idx].holder_id = form.holder_id.value;
+        methods[idx].wallet_address = form.wallet_address.value;
+        methods[idx].is_active = parseInt(form.is_active.value);
+
+        try {
+            await DB.query(
+                `UPDATE payment_methods SET currency = ?, type = ?, title = ?, bank_name = ?, account_number = ?, holder_name = ?, holder_id = ?, wallet_address = ?, is_active = ? WHERE id = ?`,
+                [methods[idx].currency, methods[idx].type, methods[idx].title, methods[idx].bank_name, methods[idx].account_number, methods[idx].holder_name, methods[idx].holder_id, methods[idx].wallet_address, methods[idx].is_active, methodId]
+            );
+        } catch (e) {
+            console.warn("Updated local storage:", e);
+        }
+
+        DB.setLocalTable("payment_methods", methods);
+        bootstrap.Modal.getInstance(document.getElementById("modalEditPaymentMethod")).hide();
+        alert("¡Forma de pago actualizada con éxito!");
+        this.loadAdminPaymentMethods();
+    }
+
+    async deletePaymentMethod() {
+        const methodId = document.getElementById("editPaymentMethodId").value;
+        if (!methodId) return;
+        if (!confirm("¿Deseas eliminar esta forma de pago?")) return;
+
+        try {
+            await DB.query("DELETE FROM payment_methods WHERE id = ?", [methodId]);
+        } catch (e) {}
+
+        DB.deleteLocalRecord("payment_methods", methodId);
+        bootstrap.Modal.getInstance(document.getElementById("modalEditPaymentMethod")).hide();
+        alert("Forma de pago eliminada con éxito.");
         this.loadAdminPaymentMethods();
     }
 
