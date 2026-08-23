@@ -18,11 +18,50 @@ class AppUIManager {
     }
 
     /**
-     * Carga el precio de membresía y tasa BCV desde Turso (o localStorage) y actualiza la landing
+     * Consulta la API en vivo https://ve.dolarapi.com/v1/dolares y extrae la tasa promedio del Dólar Oficial
+     */
+    async fetchLiveBcvRate(silent = false) {
+        try {
+            const res = await fetch("https://ve.dolarapi.com/v1/dolares");
+            if (!res.ok) throw new Error(`HTTP ${res.status}`);
+            const data = await res.json();
+            
+            let oficialItem = null;
+            if (Array.isArray(data)) {
+                oficialItem = data.find(item => item.fuente === "oficial") || 
+                              data.find(item => item.nombre && item.nombre.toLowerCase().includes("dólar") && item.fuente === "oficial") ||
+                              data[0];
+            }
+
+            if (oficialItem) {
+                const rate = parseFloat(oficialItem.promedio || oficialItem.venta || oficialItem.compra);
+                if (!isNaN(rate) && rate > 0) {
+                    CONFIG.DEFAULT_BCV_RATE = rate;
+                    DB.setLocalRecord("settings", { key_name: "bcv_rate", value: String(rate) });
+                    try {
+                        await DB.query("INSERT OR REPLACE INTO settings (key_name, value) VALUES ('bcv_rate', ?)", [String(rate)]);
+                    } catch (e) {}
+
+                    if (!silent) {
+                        console.log(`[DolarAPI] Tasa BCV Oficial obtenida: ${rate} Bs./USD`);
+                    }
+                    return { success: true, rate, item: oficialItem };
+                }
+            }
+        } catch (err) {
+            console.warn("[DolarAPI] No se pudo obtener la tasa BCV en vivo:", err.message);
+        }
+        return { success: false, rate: CONFIG.DEFAULT_BCV_RATE };
+    }
+
+    /**
+     * Carga el precio de membresía y tasa BCV desde Turso / DolarAPI / localStorage
      */
     async loadAndUpdateMembershipPrice() {
+        // Consultar tasa BCV en vivo desde DolarAPI primero
+        await this.fetchLiveBcvRate(true);
+
         try {
-            // Intentar leer de Turso
             const result = await DB.query(
                 "SELECT key_name, value FROM settings WHERE key_name IN ('membership_price_usd', 'bcv_rate')"
             );
@@ -35,22 +74,12 @@ class AppUIManager {
                             DB.setLocalRecord("settings", { key_name: "membership_price_usd", value: String(parsed) });
                         }
                     }
-                    if (row.key_name === 'bcv_rate') {
-                        const parsed = parseFloat(String(row.value).replace(/[^0-9.]/g, ''));
-                        if (!isNaN(parsed) && parsed > 0) {
-                            CONFIG.DEFAULT_BCV_RATE = parsed;
-                            DB.setLocalRecord("settings", { key_name: "bcv_rate", value: String(parsed) });
-                        }
-                    }
                 });
-                this.updateLandingMembershipPrice(CONFIG.MEMBERSHIP_PRICE_USD);
-                return;
             }
         } catch (e) {
             console.warn("Error al cargar tarifas desde Turso, usando valores locales:", e.message);
         }
-        // Fallback: leer de localStorage / CONFIG
-        this.updateLandingMembershipPrice();
+        this.updateLandingMembershipPrice(CONFIG.MEMBERSHIP_PRICE_USD);
     }
 
     /**
@@ -327,6 +356,9 @@ class AppUIManager {
         // Actualizar el span en la landing page
         const el = document.getElementById("membershipPriceLanding");
         if (el) el.innerText = price.toFixed(2);
+
+        const bcvEl = document.getElementById("bcvRateLanding");
+        if (bcvEl) bcvEl.innerText = CONFIG.DEFAULT_BCV_RATE.toFixed(2);
     }
 
     /**

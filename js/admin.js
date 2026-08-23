@@ -100,21 +100,22 @@ class AdminManager {
                         </div>
                         <div class="card-body">
                             <form class="row g-3 align-items-end" onsubmit="Admin.saveSystemSettings(event)">
-                                <div class="col-md-5">
+                                <div class="col-md-4">
                                     <label class="form-label fw-semibold">Precio de Membresía ($ USD Mensual)</label>
                                     <div class="input-group">
                                         <span class="input-group-text">$</span>
                                         <input type="number" step="0.01" class="form-control" id="adminMembershipPriceInput" value="${CONFIG.MEMBERSHIP_PRICE_USD.toFixed(2)}" required>
                                     </div>
                                 </div>
-                                <div class="col-md-5">
+                                <div class="col-md-4">
                                     <label class="form-label fw-semibold">Tasa Oficial BCV (Bs. / USD)</label>
                                     <div class="input-group">
                                         <span class="input-group-text">Bs.</span>
                                         <input type="number" step="0.01" class="form-control" id="adminBcvRateInput" value="${CONFIG.DEFAULT_BCV_RATE.toFixed(2)}" required>
+                                        <button type="button" class="btn btn-outline-success" onclick="Admin.syncBcvFromApi(event)" title="Obtener tasa oficial en vivo desde ve.dolarapi.com"><i class="bi bi-arrow-repeat me-1"></i> DolarAPI</button>
                                     </div>
                                 </div>
-                                <div class="col-md-2">
+                                <div class="col-md-4">
                                     <button type="submit" class="btn btn-primary w-100"><i class="bi bi-save me-1"></i> Guardar Tarifas</button>
                                 </div>
                             </form>
@@ -764,6 +765,30 @@ class AdminManager {
         }
 
         alert(`¡Tarifas del sistema actualizadas exitosamente!\nNuevos valores:\nMembresía: $${priceVal.toFixed(2)} USD\nTasa BCV: ${bcvVal.toFixed(2)} Bs./USD`);
+    }
+
+    async syncBcvFromApi(event) {
+        const btn = event ? event.currentTarget : null;
+        let origHtml = "";
+        if (btn) {
+            origHtml = btn.innerHTML;
+            btn.disabled = true;
+            btn.innerHTML = `<span class="spinner-border spinner-border-sm me-1"></span>`;
+        }
+
+        const res = await AppUI.fetchLiveBcvRate(false);
+        if (res.success) {
+            const input = document.getElementById("adminBcvRateInput");
+            if (input) input.value = res.rate.toFixed(2);
+            alert(`¡Tasa Oficial BCV obtenida exitosamente desde ve.dolarapi.com!\n\nTasa Promedio Oficial: ${res.rate} Bs. / USD\nFecha Actualización: ${res.item && res.item.fechaActualizacion ? res.item.fechaActualizacion : 'Reciente'}`);
+        } else {
+            alert("No se pudo conectar a ve.dolarapi.com. Se mantendrá el valor actual.");
+        }
+
+        if (btn) {
+            btn.disabled = false;
+            btn.innerHTML = origHtml;
+        }
     }
 }
 
