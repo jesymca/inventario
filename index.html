@@ -340,64 +340,283 @@
         </div>
     </div>
 
-    <!-- 7. MODAL NUEVA VENTA (SUBSTRAE STOCK) -->
+    <!-- 7. MODAL NUEVA VENTA (MULTI-PRODUCTO) -->
     <div class="modal fade" id="modalNewSale" tabindex="-1" aria-hidden="true">
-        <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-dialog modal-lg modal-dialog-centered">
             <div class="modal-content">
                 <div class="modal-header bg-success text-white">
-                    <h5 class="modal-title fw-bold"><i class="bi bi-cart-check me-2"></i> Registrar Venta</h5>
+                    <h5 class="modal-title fw-bold"><i class="bi bi-cart-check me-2"></i> Registrar Nueva Venta</h5>
                     <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
                 <div class="modal-body">
                     <form onsubmit="User.saveNewSale(event)">
-                        <div class="mb-3">
-                            <label class="form-label fw-semibold">Seleccionar Cliente</label>
-                            <select name="client_id" id="saleClientSelect" class="form-select" required></select>
+                        <!-- Cliente con Búsqueda en Tiempo Real -->
+                        <div class="card bg-light border-0 mb-3">
+                            <div class="card-body py-2">
+                                <label class="form-label fw-bold text-success mb-1"><i class="bi bi-person-bounding-box me-1"></i> Seleccionar Cliente</label>
+                                <input type="text" id="saleClientSearch" class="form-control form-control-sm mb-2" placeholder="🔍 Buscar cliente por cédula/RIF o nombre..." oninput="User.filterSaleClientsSelect(this.value)">
+                                <select name="client_id" id="saleClientSelect" class="form-select form-select-sm" required size="3"></select>
+                            </div>
                         </div>
-                        <div class="mb-3">
-                            <label class="form-label fw-semibold">Seleccionar Producto</label>
-                            <select name="product_id" id="saleProductSelect" class="form-select" required></select>
+
+                        <!-- Selector de Productos -->
+                        <div class="card border-0 shadow-sm mb-3">
+                            <div class="card-body">
+                                <h6 class="fw-bold mb-2"><i class="bi bi-box-seam me-1"></i> Agregar Productos a la Venta</h6>
+                                <div class="row g-2 align-items-end mb-2">
+                                    <div class="col-md-6">
+                                        <label class="form-label small fw-semibold mb-1">Producto</label>
+                                        <select id="saleProductSelect" class="form-select"></select>
+                                    </div>
+                                    <div class="col-md-3">
+                                        <label class="form-label small fw-semibold mb-1">Cantidad</label>
+                                        <div class="input-group input-group-sm">
+                                            <button type="button" class="btn btn-outline-secondary" onclick="User.adjustSaleTempQty(-1)">-</button>
+                                            <input type="number" id="saleItemQtyInput" min="1" class="form-control text-center" value="1">
+                                            <button type="button" class="btn btn-outline-secondary" onclick="User.adjustSaleTempQty(1)">+</button>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-3">
+                                        <button type="button" class="btn btn-success btn-sm w-100" onclick="User.addSaleCartItem()"><i class="bi bi-plus-lg me-1"></i> Agregar Item</button>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
-                        <div class="mb-3">
-                            <label class="form-label fw-semibold">Cantidad a Vender</label>
-                            <input type="number" min="1" name="quantity" class="form-control" value="1" required>
+
+                        <!-- Carrito de Venta -->
+                        <div class="table-responsive mb-3">
+                            <table class="table table-bordered align-middle small mb-0">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th>Producto</th>
+                                        <th>P. Unit ($)</th>
+                                        <th style="width: 130px;">Cantidad</th>
+                                        <th>Subtotal ($)</th>
+                                        <th class="text-center" style="width: 50px;">Acción</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="saleCartTableBody">
+                                    <!-- Items dinámicos -->
+                                </tbody>
+                                <tfoot class="table-group-divider">
+                                    <tr>
+                                        <th colspan="3" class="text-end fs-6">TOTAL VENTA:</th>
+                                        <th colspan="2" class="fs-5 text-success" id="saleCartTotalText">$0.00 USD</th>
+                                    </tr>
+                                </tfoot>
+                            </table>
                         </div>
-                        <button type="submit" class="btn btn-success w-100 py-2">Confirmar Venta y Descontar Stock</button>
+
+                        <button type="submit" class="btn btn-success w-100 py-2 fs-6 fw-bold"><i class="bi bi-check-lg me-1"></i> Finalizar Venta y Descontar Stock</button>
                     </form>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- 8. MODAL NUEVA COMPRA (SUMA STOCK) -->
+    <!-- 8. MODAL NUEVA COMPRA (MULTI-PRODUCTO) -->
     <div class="modal fade" id="modalNewPurchase" tabindex="-1" aria-hidden="true">
-        <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-dialog modal-lg modal-dialog-centered">
             <div class="modal-content">
                 <div class="modal-header bg-primary text-white">
-                    <h5 class="modal-title fw-bold"><i class="bi bi-bag-plus me-2"></i> Registrar Compra</h5>
+                    <h5 class="modal-title fw-bold"><i class="bi bi-bag-plus me-2"></i> Registrar Nueva Compra</h5>
                     <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
                 <div class="modal-body">
                     <form onsubmit="User.saveNewPurchase(event)">
+                        <!-- Proveedor -->
+                        <div class="card bg-light border-0 mb-3">
+                            <div class="card-body py-2">
+                                <label class="form-label fw-bold text-primary mb-1"><i class="bi bi-truck me-1"></i> Seleccionar Proveedor</label>
+                                <select name="supplier_id" id="purchaseSupplierSelect" class="form-select form-select-sm" required></select>
+                            </div>
+                        </div>
+
+                        <!-- Selector de Productos -->
+                        <div class="card border-0 shadow-sm mb-3">
+                            <div class="card-body">
+                                <h6 class="fw-bold mb-2"><i class="bi bi-box-seam me-1"></i> Agregar Productos a la Compra</h6>
+                                <div class="row g-2 align-items-end mb-2">
+                                    <div class="col-md-4">
+                                        <label class="form-label small fw-semibold mb-1">Producto</label>
+                                        <select id="purchaseProductSelect" class="form-select form-select-sm"></select>
+                                    </div>
+                                    <div class="col-md-3">
+                                        <label class="form-label small fw-semibold mb-1">Cantidad</label>
+                                        <div class="input-group input-group-sm">
+                                            <button type="button" class="btn btn-outline-secondary" onclick="User.adjustPurchaseTempQty(-1)">-</button>
+                                            <input type="number" id="purchaseItemQtyInput" min="1" class="form-control text-center" value="1">
+                                            <button type="button" class="btn btn-outline-secondary" onclick="User.adjustPurchaseTempQty(1)">+</button>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-3">
+                                        <label class="form-label small fw-semibold mb-1">Costo Unit. ($)</label>
+                                        <input type="number" step="0.01" min="0" id="purchaseItemPriceInput" class="form-control form-control-sm" value="1.00">
+                                    </div>
+                                    <div class="col-md-2">
+                                        <button type="button" class="btn btn-primary btn-sm w-100" onclick="User.addPurchaseCartItem()"><i class="bi bi-plus-lg me-1"></i> Agregar</button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Carrito de Compra -->
+                        <div class="table-responsive mb-3">
+                            <table class="table table-bordered align-middle small mb-0">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th>Producto</th>
+                                        <th style="width: 130px;">Cantidad</th>
+                                        <th>Costo Unit ($)</th>
+                                        <th>Subtotal ($)</th>
+                                        <th class="text-center" style="width: 50px;">Acción</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="purchaseCartTableBody">
+                                    <!-- Items dinámicos -->
+                                </tbody>
+                                <tfoot class="table-group-divider">
+                                    <tr>
+                                        <th colspan="3" class="text-end fs-6">TOTAL COMPRA:</th>
+                                        <th colspan="2" class="fs-5 text-primary" id="purchaseCartTotalText">$0.00 USD</th>
+                                    </tr>
+                                </tfoot>
+                            </table>
+                        </div>
+
+                        <button type="submit" class="btn btn-primary w-100 py-2 fs-6 fw-bold"><i class="bi bi-check-lg me-1"></i> Finalizar Compra e Incrementar Stock</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 12. MODAL EDITAR PRODUCTO -->
+    <div class="modal fade" id="modalEditProduct" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header bg-warning text-dark">
+                    <h5 class="modal-title fw-bold"><i class="bi bi-pencil-square me-2"></i> Editar Producto</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <form onsubmit="User.saveEditProduct(event)">
+                        <input type="hidden" name="id" id="editProductId">
                         <div class="mb-3">
-                            <label class="form-label fw-semibold">Seleccionar Proveedor</label>
-                            <select name="supplier_id" id="purchaseSupplierSelect" class="form-select" required></select>
+                            <label class="form-label fw-semibold">Nombre del Producto</label>
+                            <input type="text" name="name" id="editProductName" class="form-control" required>
                         </div>
                         <div class="mb-3">
-                            <label class="form-label fw-semibold">Seleccionar Producto</label>
-                            <select name="product_id" id="purchaseProductSelect" class="form-select" required></select>
+                            <label class="form-label fw-semibold">Descripción / Detalles</label>
+                            <input type="text" name="description" id="editProductDescription" class="form-control">
                         </div>
                         <div class="row g-2 mb-3">
                             <div class="col-md-6">
-                                <label class="form-label fw-semibold">Cantidad Comprada</label>
-                                <input type="number" min="1" name="quantity" class="form-control" value="1" required>
+                                <label class="form-label fw-semibold">Categoría</label>
+                                <input type="text" name="category" id="editProductCategory" class="form-control" placeholder="Ej: Bebidas, Panes">
                             </div>
                             <div class="col-md-6">
-                                <label class="form-label fw-semibold">Precio Unit. Compra ($)</label>
-                                <input type="number" step="0.01" name="unit_price" class="form-control" value="1.00" required>
+                                <label class="form-label fw-semibold">Stock (Cantidad)</label>
+                                <input type="number" name="quantity" id="editProductQuantity" class="form-control" min="0" required>
                             </div>
                         </div>
-                        <button type="submit" class="btn btn-primary w-100 py-2">Confirmar Compra e Incrementar Stock</button>
+                        <div class="row g-2 mb-3">
+                            <div class="col-md-6">
+                                <label class="form-label fw-semibold">Precio Compra ($)</label>
+                                <input type="number" step="0.01" name="purchase_price" id="editProductPurchasePrice" class="form-control" required>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label fw-semibold">Precio Venta ($)</label>
+                                <input type="number" step="0.01" name="sale_price" id="editProductSalePrice" class="form-control" required>
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label fw-semibold">Cambiar Imagen (Opcional)</label>
+                            <input type="file" class="form-control" accept="image/png, image/jpeg">
+                        </div>
+                        <button type="submit" class="btn btn-warning w-100 py-2 fw-bold"><i class="bi bi-save me-1"></i> Guardar Cambios del Producto</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 13. MODAL EDITAR CLIENTE -->
+    <div class="modal fade" id="modalEditClient" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header bg-warning text-dark">
+                    <h5 class="modal-title fw-bold"><i class="bi bi-pencil-square me-2"></i> Editar Cliente</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <form onsubmit="User.saveEditClient(event)">
+                        <input type="hidden" name="id" id="editClientId">
+                        <div class="row g-2 mb-3">
+                            <div class="col-md-6">
+                                <label class="form-label fw-semibold">Cédula / RIF</label>
+                                <input type="text" name="identity_card" id="editClientIdentityCard" class="form-control" required>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label fw-semibold">Teléfono</label>
+                                <input type="text" name="phone" id="editClientPhone" class="form-control">
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label fw-semibold">Nombre Completo</label>
+                            <input type="text" name="name" id="editClientName" class="form-control" required>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label fw-semibold">Dirección</label>
+                            <input type="text" name="address" id="editClientAddress" class="form-control">
+                        </div>
+                        <button type="submit" class="btn btn-warning w-100 py-2 fw-bold"><i class="bi bi-save me-1"></i> Guardar Cambios del Cliente</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 14. MODAL EDITAR PROVEEDOR -->
+    <div class="modal fade" id="modalEditSupplier" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header bg-warning text-dark">
+                    <h5 class="modal-title fw-bold"><i class="bi bi-pencil-square me-2"></i> Editar Proveedor</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <form onsubmit="User.saveEditSupplier(event)">
+                        <input type="hidden" name="id" id="editSupplierId">
+                        <div class="mb-3">
+                            <label class="form-label fw-semibold">Nombre del Proveedor</label>
+                            <input type="text" name="name" id="editSupplierName" class="form-control" required>
+                        </div>
+                        <div class="row g-2 mb-3">
+                            <div class="col-md-6">
+                                <label class="form-label fw-semibold">Teléfono</label>
+                                <input type="text" name="phone" id="editSupplierPhone" class="form-control">
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label fw-semibold">Correo Electrónico</label>
+                                <input type="email" name="email" id="editSupplierEmail" class="form-control">
+                            </div>
+                        </div>
+                        <div class="row g-2 mb-3">
+                            <div class="col-md-6">
+                                <label class="form-label fw-semibold">Página Web</label>
+                                <input type="text" name="website" id="editSupplierWebsite" class="form-control">
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label fw-semibold">Instagram</label>
+                                <input type="text" name="instagram" id="editSupplierInstagram" class="form-control">
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label fw-semibold">Dirección</label>
+                            <input type="text" name="address" id="editSupplierAddress" class="form-control">
+                        </div>
+                        <button type="submit" class="btn btn-warning w-100 py-2 fw-bold"><i class="bi bi-save me-1"></i> Guardar Cambios del Proveedor</button>
                     </form>
                 </div>
             </div>
@@ -527,15 +746,15 @@
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script>
 
     <!-- Scripts del Sistema -->
-    <script src="./js/config.js?v=1.0.3"></script>
-    <script src="./js/db.js?v=1.0.3"></script>
-    <script src="./js/storage.js?v=1.0.3"></script>
-    <script src="./js/pdf_reports.js?v=1.0.3"></script>
-    <script src="./js/import_export.js?v=1.0.3"></script>
-    <script src="./js/auth.js?v=1.0.3"></script>
-    <script src="./js/admin.js?v=1.0.3"></script>
-    <script src="./js/user.js?v=1.0.3"></script>
-    <script src="./js/presets.js?v=1.0.3"></script>
-    <script src="./js/app.js?v=1.0.3"></script>
+    <script src="./js/config.js?v=1.0.4"></script>
+    <script src="./js/db.js?v=1.0.4"></script>
+    <script src="./js/storage.js?v=1.0.4"></script>
+    <script src="./js/pdf_reports.js?v=1.0.4"></script>
+    <script src="./js/import_export.js?v=1.0.4"></script>
+    <script src="./js/auth.js?v=1.0.4"></script>
+    <script src="./js/admin.js?v=1.0.4"></script>
+    <script src="./js/user.js?v=1.0.4"></script>
+    <script src="./js/presets.js?v=1.0.4"></script>
+    <script src="./js/app.js?v=1.0.4"></script>
 </body>
 </html>
