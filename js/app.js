@@ -220,10 +220,7 @@ class AppUIManager {
     updateLandingMembershipPrice() {
         const span = document.getElementById("membershipPriceLanding");
         if (span) {
-            const settings = DB.getLocalTable("settings");
-            const priceSetting = settings.find(s => s.key_name === "membership_price_usd");
-            const priceVal = priceSetting ? parseFloat(priceSetting.value) : CONFIG.MEMBERSHIP_PRICE_USD;
-            span.innerText = priceVal.toFixed(2);
+            span.innerText = CONFIG.MEMBERSHIP_PRICE_USD.toFixed(2);
         }
     }
 
