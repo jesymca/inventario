@@ -1218,8 +1218,65 @@ class UserManager {
         const methodSelect = document.getElementById("paymentMethodSelect");
         const methods = DB.getLocalTable("payment_methods").filter(m => Number(m.is_active) === 1);
 
-        methodSelect.innerHTML = methods.map(m => `<option value="${m.id}">${m.title} (${m.currency})</option>`).join("");
+        const priceUsd = CONFIG.MEMBERSHIP_PRICE_USD;
+        const bcvRate = CONFIG.DEFAULT_BCV_RATE;
+        const priceVes = (priceUsd * bcvRate).toFixed(2);
+
+        const usdBanner = document.getElementById("modalPaymentUsdBanner");
+        const vesBanner = document.getElementById("modalPaymentVesBanner");
+        const bcvBanner = document.getElementById("modalPaymentBcvBanner");
+        const dateInput = document.getElementById("paymentReportDateInput");
+
+        if (usdBanner) usdBanner.textContent = `$${priceUsd.toFixed(2)} USD`;
+        if (vesBanner) vesBanner.textContent = `(Bs. ${priceVes})`;
+        if (bcvBanner) bcvBanner.textContent = `1 USD = ${bcvRate.toFixed(2)} Bs.`;
+        if (dateInput) dateInput.value = new Date().toISOString().slice(0, 10);
+
+        methodSelect.innerHTML = methods.map((m, i) => `<option value="${m.id}" ${i === 0 ? 'selected' : ''}>${m.title} (${m.currency})</option>`).join("");
+        
+        if (methods.length > 0) {
+            this.handlePaymentMethodChange(methods[0].id);
+        }
+
         modal.show();
+    }
+
+    handlePaymentMethodChange(methodId) {
+        const methods = DB.getLocalTable("payment_methods");
+        const method = methods.find(m => m.id === methodId);
+        const detailsBox = document.getElementById("paymentMethodDetailsBox");
+        const detailsContent = document.getElementById("paymentMethodDetailsContent");
+        const vesContainer = document.getElementById("vesAmountContainer");
+        const vesInput = document.getElementById("paymentAmountVesInput");
+
+        if (!method) return;
+
+        // Mostrar caja de datos del método seleccionado
+        if (detailsBox && detailsContent) {
+            detailsBox.style.display = "block";
+            let html = `<strong class="text-primary d-block mb-1"><i class="bi bi-info-circle me-1"></i> Datos para efectuar el pago (${method.currency}):</strong>`;
+            html += `<div class="bg-white p-2 rounded border">`;
+            if (method.bank_name) html += `<div class="mb-1"><strong>Banco / Entidad:</strong> ${method.bank_name}</div>`;
+            if (method.account_number) html += `<div class="mb-1"><strong>Cuenta / Teléfono / ID:</strong> <code class="fs-6">${method.account_number}</code></div>`;
+            if (method.holder_name) html += `<div class="mb-1"><strong>Titular:</strong> ${method.holder_name} ${method.holder_id ? '(' + method.holder_id + ')' : ''}</div>`;
+            if (method.wallet_address) html += `<div class="mb-1"><strong>Dirección / Billetera:</strong> <code class="text-break">${method.wallet_address}</code></div>`;
+            html += `</div>`;
+            detailsContent.innerHTML = html;
+        }
+
+        // Mostrar/Ocultar campo de monto en Bolívares según la moneda
+        if (vesContainer && vesInput) {
+            if (method.currency === "VES") {
+                vesContainer.style.display = "block";
+                const expectedVes = (CONFIG.MEMBERSHIP_PRICE_USD * CONFIG.DEFAULT_BCV_RATE).toFixed(2);
+                vesInput.value = expectedVes;
+                vesInput.required = true;
+            } else {
+                vesContainer.style.display = "none";
+                vesInput.value = "";
+                vesInput.required = false;
+            }
+        }
     }
 
     async saveReportPayment(event) {
@@ -1233,8 +1290,16 @@ class UserManager {
             proofUrl = await Storage.uploadImage(proofInput.files[0]);
         }
 
-        const amountUsd = CONFIG.MEMBERSHIP_PRICE_USD;
-        const amountVes = amountUsd * CONFIG.DEFAULT_BCV_RATE;
+        const methods = DB.getLocalTable("payment_methods");
+        const method = methods.find(m => m.id === methodId) || { currency: "USD" };
+
+        let amountUsd = CONFIG.MEMBERSHIP_PRICE_USD;
+        let amountVes = (amountUsd * CONFIG.DEFAULT_BCV_RATE).toFixed(2);
+
+        if (method.currency === "VES" && form.amount_ves_input && form.amount_ves_input.value) {
+            amountVes = parseFloat(form.amount_ves_input.value);
+            amountUsd = CONFIG.MEMBERSHIP_PRICE_USD;
+        }
 
         const newPayment = {
             id: "pay_" + Date.now(),
@@ -1273,7 +1338,7 @@ class UserManager {
 
         bootstrap.Modal.getInstance(document.getElementById("modalReportPayment")).hide();
         form.reset();
-        alert("¡Comprobante de pago enviado con éxito! El Administrador revisará tu archivo adjunto para verificar y activar tu membresía.");
+        alert("¡Comprobante de pago enviado con éxito! El Administrador revisará tu reporte y comprobante para verificar y activar tu membresía.");
     }
 
     async saveBusinessProfile(event) {

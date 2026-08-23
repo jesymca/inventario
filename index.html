@@ -661,11 +661,44 @@
                     <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
                 <div class="modal-body">
+                    <!-- Franja de Tarifas (USD / VES / BCV) -->
+                    <div class="alert alert-info border-0 shadow-sm mb-3">
+                        <div class="d-flex align-items-center justify-content-between">
+                            <div>
+                                <span class="small text-muted d-block fw-semibold text-uppercase" style="font-size: 0.75rem;">Costo de Membresía Mensual</span>
+                                <span class="fs-4 fw-bold text-dark" id="modalPaymentUsdBanner">$15.00 USD</span>
+                                <span class="fs-5 fw-bold text-primary ms-1" id="modalPaymentVesBanner">(Bs. 600.00)</span>
+                            </div>
+                            <div class="text-end">
+                                <span class="badge bg-primary mb-1">Tasa Oficial BCV</span>
+                                <div class="small fw-semibold text-dark" id="modalPaymentBcvBanner">1 USD = 40.00 Bs.</div>
+                            </div>
+                        </div>
+                    </div>
+
                     <form onsubmit="User.saveReportPayment(event)">
                         <div class="mb-3">
                             <label class="form-label fw-semibold">Forma de Pago Utilizada</label>
-                            <select name="method_id" id="paymentMethodSelect" class="form-select" required></select>
+                            <select name="method_id" id="paymentMethodSelect" class="form-select" onchange="User.handlePaymentMethodChange(this.value)" required></select>
                         </div>
+
+                        <!-- Caja Informativa con los Datos de Pago Seleccionados -->
+                        <div id="paymentMethodDetailsBox" class="card bg-light border-primary border-opacity-50 mb-3" style="display: none;">
+                            <div class="card-body py-2 px-3 small" id="paymentMethodDetailsContent">
+                                <!-- Se llena dinámicamente -->
+                            </div>
+                        </div>
+
+                        <!-- Monto Transferido en Bolívares (Solo si el método es VES) -->
+                        <div id="vesAmountContainer" class="mb-3" style="display: none;">
+                            <label class="form-label fw-semibold text-primary"><i class="bi bi-cash-stack me-1"></i> Monto Exacto Transferido (Bs.)</label>
+                            <div class="input-group">
+                                <span class="input-group-text bg-primary text-white fw-bold">Bs.</span>
+                                <input type="number" step="0.01" min="0" name="amount_ves_input" id="paymentAmountVesInput" class="form-control fw-bold" placeholder="Ej: 600.00">
+                            </div>
+                            <div class="form-text small text-muted">Ingresa el monto exacto en Bolívares que transferiste (ej. si la tasa daba 7780 y transferiste 7800 Bs).</div>
+                        </div>
+
                         <div class="mb-3">
                             <label class="form-label fw-semibold">Número de Transferencia / Referencia</label>
                             <input type="text" name="reference_number" class="form-control" placeholder="Ej: 00984123" required>
@@ -677,7 +710,7 @@
                             </div>
                             <div class="col-md-6">
                                 <label class="form-label fw-semibold">Fecha del Pago</label>
-                                <input type="date" name="payment_date" class="form-control" required>
+                                <input type="date" name="payment_date" id="paymentReportDateInput" class="form-control" required>
                             </div>
                         </div>
                         <div class="mb-3">
@@ -774,15 +807,15 @@
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script>
 
     <!-- Scripts del Sistema -->
-    <script src="./js/config.js?v=1.0.6"></script>
-    <script src="./js/db.js?v=1.0.6"></script>
-    <script src="./js/storage.js?v=1.0.6"></script>
-    <script src="./js/pdf_reports.js?v=1.0.6"></script>
-    <script src="./js/import_export.js?v=1.0.6"></script>
-    <script src="./js/auth.js?v=1.0.6"></script>
-    <script src="./js/admin.js?v=1.0.6"></script>
-    <script src="./js/user.js?v=1.0.6"></script>
-    <script src="./js/presets.js?v=1.0.6"></script>
-    <script src="./js/app.js?v=1.0.6"></script>
+    <script src="./js/config.js?v=1.0.7"></script>
+    <script src="./js/db.js?v=1.0.7"></script>
+    <script src="./js/storage.js?v=1.0.7"></script>
+    <script src="./js/pdf_reports.js?v=1.0.7"></script>
+    <script src="./js/import_export.js?v=1.0.7"></script>
+    <script src="./js/auth.js?v=1.0.7"></script>
+    <script src="./js/admin.js?v=1.0.7"></script>
+    <script src="./js/user.js?v=1.0.7"></script>
+    <script src="./js/presets.js?v=1.0.7"></script>
+    <script src="./js/app.js?v=1.0.7"></script>
 </body>
 </html>
