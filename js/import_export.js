@@ -159,7 +159,109 @@ class ImportExportManager {
             DB.setLocalRecord("suppliers", supplier);
             importedCount++;
         }
-        return importedCount;
+        return { success: true, message: `¡Proceso completado! Se importaron ${importedCount} proveedores con éxito.` };
+    }
+
+    /**
+     * Genera la descarga de respaldo en SQL, CSV o JSON y registra en el historial
+     */
+    async generateBackupDownload(modules, format, businessId) {
+        let content = "";
+        let filename = `respaldo_inventario_${format.toLowerCase()}_${new Date().toISOString().slice(0, 10)}.${format.toLowerCase() === 'sql' ? 'sql' : (format.toLowerCase() === 'csv' ? 'csv' : 'json')}`;
+        let mimeType = "text/plain";
+        let totalRecords = 0;
+
+        const data = {};
+        if (modules.includes("products")) {
+            data.products = DB.getLocalTable("products").filter(p => p.business_id === businessId);
+            totalRecords += data.products.length;
+        }
+        if (modules.includes("sales")) {
+            data.sales = DB.getLocalTable("sales").filter(s => s.business_id === businessId);
+            totalRecords += data.sales.length;
+        }
+        if (modules.includes("purchases")) {
+            data.purchases = DB.getLocalTable("purchases").filter(p => p.business_id === businessId);
+            totalRecords += data.purchases.length;
+        }
+        if (modules.includes("clients")) {
+            data.clients = DB.getLocalTable("clients").filter(c => c.business_id === businessId);
+            totalRecords += data.clients.length;
+        }
+        if (modules.includes("suppliers")) {
+            data.suppliers = DB.getLocalTable("suppliers").filter(s => s.business_id === businessId);
+            totalRecords += data.suppliers.length;
+        }
+
+        if (format === "JSON") {
+            content = JSON.stringify(data, null, 2);
+            mimeType = "application/json";
+        } else if (format === "SQL") {
+            mimeType = "text/plain";
+            content = `-- RESPALDO BASE DE DATOS SISTEMA CONTROL INVENTARIO\n`;
+            content += `-- Fecha de Emisión: ${new Date().toLocaleString()}\n\n`;
+
+            for (const table of Object.keys(data)) {
+                content += `-- TABLA: ${table.toUpperCase()}\n`;
+                for (const item of data[table]) {
+                    const keys = Object.keys(item);
+                    const values = keys.map(k => {
+                        const val = item[k];
+                        if (val === null || val === undefined) return "NULL";
+                        if (typeof val === "number") return val;
+                        return `'${String(val).replace(/'/g, "''")}'`;
+                    });
+                    content += `INSERT INTO ${table} (${keys.join(", ")}) VALUES (${values.join(", ")});\n`;
+                }
+                content += `\n`;
+            }
+        } else if (format === "CSV") {
+            mimeType = "text/csv";
+            for (const table of Object.keys(data)) {
+                content += `=== TABLA: ${table.toUpperCase()} ===\n`;
+                if (data[table].length > 0) {
+                    const keys = Object.keys(data[table][0]);
+                    content += keys.join(",") + "\n";
+                    for (const item of data[table]) {
+                        const vals = keys.map(k => `"${String(item[k] || '').replace(/"/g, '""')}"`);
+                        content += vals.join(",") + "\n";
+                    }
+                }
+                content += "\n";
+            }
+        }
+
+        // Trigger file download
+        const blob = new Blob([content], { type: mimeType });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+
+        // Guardar registro de la actividad en data_exports
+        const exportRecord = {
+            id: "exp_" + Date.now(),
+            user_id: Auth.currentUser ? Auth.currentUser.id : "usr_system",
+            business_id: businessId,
+            modules: modules.join(", "),
+            format: format,
+            record_count: totalRecords,
+            created_at: new Date().toISOString()
+        };
+
+        try {
+            await DB.query(
+                `INSERT INTO data_exports (id, user_id, business_id, modules, format, record_count, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)`,
+                [exportRecord.id, exportRecord.user_id, exportRecord.business_id, exportRecord.modules, exportRecord.format, exportRecord.record_count, exportRecord.created_at]
+            );
+        } catch (e) {}
+
+        DB.setLocalRecord("data_exports", exportRecord);
+        return { success: true, count: totalRecords };
     }
 }
 

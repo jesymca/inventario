@@ -504,10 +504,28 @@ class AdminManager {
             return;
         }
 
+        const businesses = DB.getLocalTable("businesses");
+        const roles = DB.getLocalTable("user_business_roles");
+
         tbody.innerHTML = users.map((u, i) => {
             const dateStr = u.created_at || u.trial_starts_at;
             const regDate = dateStr ? new Date(dateStr).toLocaleDateString() + " " + new Date(dateStr).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : "Reciente";
             const roleBadge = u.role === "superadmin" ? '<span class="badge bg-danger">SuperAdmin</span>' : '<span class="badge bg-primary">Usuario / Dueño</span>';
+
+            // Buscar comercio y teléfono
+            const uRole = roles.find(r => r.user_email === u.email);
+            const biz = businesses.find(b => (uRole && b.id === uRole.business_id) || b.owner_user_id === u.id) || {};
+            
+            let phoneStr = biz.phone || u.phone || "";
+            let phoneClean = phoneStr.replace(/[^0-9]/g, '');
+            if (phoneClean.startsWith('0')) phoneClean = '58' + phoneClean.substring(1);
+            if (phoneClean && !phoneClean.startsWith('58') && !phoneClean.startsWith('56') && !phoneClean.startsWith('52') && phoneClean.length === 10) {
+                phoneClean = '58' + phoneClean;
+            }
+
+            const waBtn = phoneClean 
+                ? `<a href="https://wa.me/${phoneClean}" target="_blank" class="btn btn-xs btn-outline-success py-0 px-2 small ms-1" title="Contactar por WhatsApp"><i class="bi bi-whatsapp"></i> ${phoneStr}</a>`
+                : `<span class="text-muted small">${phoneStr || 'Sin tlf'}</span>`;
 
             // Distintivo de Método de Registro (Google vs Registro Directo)
             const isGoogle = (u.google_id || (u.id && u.id.startsWith("usr_g_")));
@@ -516,14 +534,21 @@ class AdminManager {
                 : '<span class="badge bg-secondary text-white me-1"><i class="bi bi-person-check me-1"></i> Directo</span>';
 
             let statusBadge = '<span class="badge bg-info text-dark">En Prueba (15 días)</span>';
-            if (u.membership_expires_at) {
+            if (u.membership_type === "cortesia") {
+                statusBadge = `<span class="badge bg-warning text-dark"><i class="bi bi-gift-fill me-1"></i> Cortesía (${u.membership_expires_at ? new Date(u.membership_expires_at).toLocaleDateString() : 'Indefinida'})</span>`;
+            } else if (u.membership_expires_at) {
                 const exp = new Date(u.membership_expires_at);
                 if (exp > new Date()) {
-                    statusBadge = `<span class="badge bg-success">Membresía Activa (${exp.toLocaleDateString()})</span>`;
+                    statusBadge = `<span class="badge bg-success">Activa (${exp.toLocaleDateString()})</span>`;
                 } else {
-                    statusBadge = `<span class="badge bg-danger">Membresía Vencida (${exp.toLocaleDateString()})</span>`;
+                    statusBadge = `<span class="badge bg-danger">Vencida (${exp.toLocaleDateString()})</span>`;
                 }
             }
+
+            const isSuspended = Number(u.is_active) === 0;
+            const accountStateBadge = isSuspended
+                ? '<span class="badge bg-danger"><i class="bi bi-person-x-fill me-1"></i> Suspendido</span>'
+                : '<span class="badge bg-success"><i class="bi bi-person-check-fill me-1"></i> Activo</span>';
 
             return `
                 <tr>
@@ -531,17 +556,161 @@ class AdminManager {
                     <td>
                         <strong>${u.name}</strong><br>
                         ${originBadge}
+                        ${biz.name ? `<br><small class="text-muted"><i class="bi bi-shop me-1"></i> ${biz.name}</small>` : ''}
                     </td>
-                    <td><code>${u.email}</code></td>
+                    <td>
+                        <code>${u.email}</code><br>
+                        ${waBtn}
+                    </td>
                     <td>${roleBadge}</td>
                     <td><i class="bi bi-calendar-event me-1 text-muted"></i> ${regDate}</td>
-                    <td>${statusBadge}</td>
+                    <td>${statusBadge}<br>${accountStateBadge}</td>
                     <td class="text-end">
-                        <span class="badge bg-success">Activo</span>
+                        <div class="btn-group btn-group-sm">
+                            <button class="btn btn-outline-success" onclick="Admin.openGrantMembershipModal('${u.id}')" title="Asignar Membresía o Cortesía"><i class="bi bi-gift"></i> Cortesía</button>
+                            ${isSuspended 
+                                ? `<button class="btn btn-outline-primary" onclick="Admin.toggleUserStatus('${u.id}', 1)" title="Activar Cuenta"><i class="bi bi-check-circle"></i> Activar</button>` 
+                                : `<button class="btn btn-outline-danger" onclick="Admin.toggleUserStatus('${u.id}', 0)" title="Suspender Cuenta"><i class="bi bi-slash-circle"></i> Suspender</button>`
+                            }
+                        </div>
                     </td>
                 </tr>
             `;
         }).join("");
+    }
+
+    openGrantMembershipModal(userId) {
+        const users = DB.getLocalTable("users");
+        const u = users.find(item => item.id === userId);
+        if (!u) return AppUI.showAlert("Error", "Usuario no encontrado", "warning");
+
+        document.getElementById("grantMembershipUserId").value = u.id;
+        document.getElementById("grantMembershipUserName").value = `${u.name} (${u.email})`;
+        document.getElementById("grantMembershipType").value = u.membership_type || "cortesia";
+
+        const expDate = u.membership_expires_at ? new Date(u.membership_expires_at) : new Date(Date.now() + 30 * 86400000);
+        document.getElementById("grantMembershipExpDate").value = expDate.toISOString().split("T")[0];
+
+        const modal = new bootstrap.Modal(document.getElementById("modalGrantMembership"));
+        modal.show();
+    }
+
+    quickSetGrantDate(daysStr) {
+        if (!daysStr) return;
+        const days = parseInt(daysStr);
+        if (isNaN(days)) return;
+
+        const date = new Date(Date.now() + days * 86400000);
+        document.getElementById("grantMembershipExpDate").value = date.toISOString().split("T")[0];
+    }
+
+    async saveGrantMembership(event) {
+        event.preventDefault();
+        const userId = document.getElementById("grantMembershipUserId").value;
+        const type = document.getElementById("grantMembershipType").value;
+        const expDateStr = document.getElementById("grantMembershipExpDate").value;
+
+        if (!userId || !expDateStr) return;
+
+        const expIso = new Date(expDateStr + "T23:59:59").toISOString();
+
+        const users = DB.getLocalTable("users");
+        const idx = users.findIndex(u => u.id === userId);
+        if (idx >= 0) {
+            users[idx].membership_expires_at = expIso;
+            users[idx].membership_type = type;
+            users[idx].is_active = 1;
+
+            try {
+                await DB.query(
+                    "UPDATE users SET membership_expires_at = ?, membership_type = ?, is_active = 1 WHERE id = ?",
+                    [expIso, type, userId]
+                );
+            } catch (e) {}
+
+            DB.setLocalTable("users", users);
+        }
+
+        bootstrap.Modal.getInstance(document.getElementById("modalGrantMembership")).hide();
+        AppUI.showAlert("Membresía Otorgada", `¡Licencia de ${type.toUpperCase()} asignada con éxito hasta el ${new Date(expIso).toLocaleDateString()}!`, "success");
+        this.loadAdminUsersTable();
+    }
+
+    async toggleUserStatus(userId, newStatus) {
+        const users = DB.getLocalTable("users");
+        const idx = users.findIndex(u => u.id === userId);
+        if (idx < 0) return;
+
+        const u = users[idx];
+        const actionLabel = newStatus === 0 ? "suspender" : "activar";
+
+        AppUI.showConfirm(
+            `Confirmar Acción`,
+            `¿Estás seguro de que deseas ${actionLabel} la cuenta de <strong>${u.name}</strong> (${u.email})?`,
+            async () => {
+                users[idx].is_active = newStatus;
+                try {
+                    await DB.query("UPDATE users SET is_active = ? WHERE id = ?", [newStatus, userId]);
+                } catch (e) {}
+
+                DB.setLocalTable("users", users);
+                AppUI.showAlert("Estado Actualizado", `La cuenta ha sido ${newStatus === 0 ? 'SUSPENDIDA' : 'ACTIVADA'} correctamente.`, newStatus === 0 ? "warning" : "success");
+                Admin.loadAdminUsersTable();
+            }
+        );
+    }
+
+    showBusinessDetailsModal(businessId) {
+        const businesses = DB.getLocalTable("businesses");
+        const b = businesses.find(item => item.id === businessId);
+        if (!b) return AppUI.showAlert("Error", "Comercio no encontrado", "warning");
+
+        const users = DB.getLocalTable("users");
+        const owner = users.find(u => u.id === b.owner_user_id) || { name: "Propietario", email: b.email || "N/A" };
+
+        let phoneClean = b.phone ? b.phone.replace(/[^0-9]/g, '') : '';
+        if (phoneClean.startsWith('0')) phoneClean = '58' + phoneClean.substring(1);
+        if (phoneClean && !phoneClean.startsWith('58') && !phoneClean.startsWith('56') && !phoneClean.startsWith('52') && phoneClean.length === 10) {
+            phoneClean = '58' + phoneClean;
+        }
+
+        const body = document.getElementById("businessDetailsModalBody");
+        if (body) {
+            body.innerHTML = `
+                <div class="text-center mb-3">
+                    ${b.logo_url ? `<img src="${b.logo_url}" class="rounded border p-1 mb-2" style="max-height: 80px;">` : `<div class="mx-auto rounded-circle bg-primary text-white d-flex align-items-center justify-content-center mb-2" style="width: 64px; height: 64px; font-size: 28px;"><i class="bi bi-shop"></i></div>`}
+                    <h5 class="fw-bold mb-1">${b.name}</h5>
+                    <span class="badge bg-primary">${b.category_preset ? b.category_preset.toUpperCase() : 'GENERAL'}</span>
+                </div>
+                <hr>
+                <div class="row g-3 small">
+                    <div class="col-6">
+                        <strong class="text-muted d-block">Número RIF:</strong>
+                        <span>${b.rif || 'No registrado'}</span>
+                    </div>
+                    <div class="col-6">
+                        <strong class="text-muted d-block">Fecha Registro:</strong>
+                        <span>${b.created_at ? new Date(b.created_at).toLocaleDateString() : 'N/A'}</span>
+                    </div>
+                    <div class="col-12">
+                        <strong class="text-muted d-block">Propietario de Cuenta:</strong>
+                        <span>${owner.name} (<code>${owner.email}</code>)</span>
+                    </div>
+                    <div class="col-6">
+                        <strong class="text-muted d-block">Teléfono / WhatsApp:</strong>
+                        <span>${b.phone || 'N/A'}</span>
+                        ${phoneClean ? `<a href="https://wa.me/${phoneClean}" target="_blank" class="btn btn-sm btn-success d-block mt-1 py-1"><i class="bi bi-whatsapp me-1"></i> Abrir WhatsApp</a>` : ''}
+                    </div>
+                    <div class="col-6">
+                        <strong class="text-muted d-block">Dirección:</strong>
+                        <span>${b.address || 'Principal'}</span>
+                    </div>
+                </div>
+            `;
+        }
+
+        const modal = new bootstrap.Modal(document.getElementById("modalBusinessDetails"));
+        modal.show();
     }
 
     async loadAdminPaymentMethods() {
@@ -725,7 +894,7 @@ class AdminManager {
                     <td>${b.phone || 'N/A'}</td>
                     <td><span class="badge bg-success">Activo</span></td>
                     <td class="text-end">
-                        <button class="btn btn-sm btn-outline-primary" onclick="alert('Comercio: ${b.name} registrado por ${owner.email}')"><i class="bi bi-eye"></i> Detalles</button>
+                        <button class="btn btn-sm btn-outline-primary" onclick="Admin.showBusinessDetailsModal('${b.id}')"><i class="bi bi-eye"></i> Detalles</button>
                     </td>
                 </tr>
             `;

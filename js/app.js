@@ -86,40 +86,48 @@ class AppUIManager {
      * Inicializa Google Identity Services API si el SDK está cargado
      */
     initGoogleAuth() {
-        if (window.google && google.accounts && google.accounts.id) {
-            google.accounts.id.initialize({
-                client_id: CONFIG.GOOGLE_CLIENT_ID,
-                callback: (res) => {
-                    // Ocultar modales si estuviesen abiertos
-                    const modalLoginEl = document.getElementById("modalLogin");
-                    const modalRegisterEl = document.getElementById("modalRegister");
-                    if (modalLoginEl) {
-                        const m = bootstrap.Modal.getInstance(modalLoginEl);
-                        if (m) m.hide();
-                    }
-                    if (modalRegisterEl) {
-                        const m = bootstrap.Modal.getInstance(modalRegisterEl);
-                        if (m) m.hide();
-                    }
-                    Auth.handleGoogleCredentialResponse(res).then(r => {
-                        AppUI.renderApp();
-                        if (r && r.multiple) AppUI.openAccountSelectorModal();
-                    }).catch(e => alert(e.message));
-                }
-            });
-
-            this.renderGoogleButtons();
-
-            // Escuchar la apertura de los modales para re-renderizar botones cuando ya son visibles
-            ["modalLogin", "modalRegister"].forEach(modalId => {
-                const el = document.getElementById(modalId);
-                if (el) {
-                    el.addEventListener("shown.bs.modal", () => {
-                        this.renderGoogleButtons();
-                    });
-                }
-            });
+        if (!window.google || !google.accounts || !google.accounts.id) {
+            setTimeout(() => this.initGoogleAuth(), 300);
+            return;
         }
+
+        if (this._googleAuthInitialized) {
+            this.renderGoogleButtons();
+            return;
+        }
+
+        this._googleAuthInitialized = true;
+        google.accounts.id.initialize({
+            client_id: CONFIG.GOOGLE_CLIENT_ID,
+            callback: (res) => {
+                const modalLoginEl = document.getElementById("modalLogin");
+                const modalRegisterEl = document.getElementById("modalRegister");
+                if (modalLoginEl) {
+                    const m = bootstrap.Modal.getInstance(modalLoginEl);
+                    if (m) m.hide();
+                }
+                if (modalRegisterEl) {
+                    const m = bootstrap.Modal.getInstance(modalRegisterEl);
+                    if (m) m.hide();
+                }
+                Auth.handleGoogleCredentialResponse(res).then(r => {
+                    AppUI.renderApp();
+                    if (r && r.multiple) AppUI.openAccountSelectorModal();
+                }).catch(e => AppUI.showAlert("Error", e.message, "danger"));
+            }
+        });
+
+        this.renderGoogleButtons();
+
+        // Escuchar la apertura de los modales para re-renderizar botones cuando ya son visibles
+        ["modalLogin", "modalRegister"].forEach(modalId => {
+            const el = document.getElementById(modalId);
+            if (el) {
+                el.addEventListener("shown.bs.modal", () => {
+                    this.renderGoogleButtons();
+                });
+            }
+        });
     }
 
     /**
@@ -313,6 +321,14 @@ class AppUIManager {
         const appView = document.getElementById("appView");
 
         if (Auth.currentUser) {
+            if (Number(Auth.currentUser.is_active) === 0) {
+                landingView.classList.add("d-none");
+                appView.classList.add("d-none");
+                const modal = bootstrap.Modal.getOrCreateInstance(document.getElementById("modalAccountSuspended"));
+                modal.show();
+                return;
+            }
+
             landingView.classList.add("d-none");
             appView.classList.remove("d-none");
 
@@ -431,6 +447,64 @@ class AppUIManager {
             bootstrap.Modal.getInstance(document.getElementById("modalAccountSelector")).hide();
             this.renderApp();
         }
+    }
+
+    /**
+     * Muestra un Alerta integrado en Modal de Bootstrap 5
+     */
+    showAlert(title, message, type = "info") {
+        const modalEl = document.getElementById("modalSystemAlert");
+        if (!modalEl) {
+            alert(`${title}: ${message}`);
+            return;
+        }
+
+        const headerEl = document.getElementById("modalSystemAlertHeader");
+        const titleEl = document.getElementById("modalSystemAlertTitle");
+        const bodyEl = document.getElementById("modalSystemAlertBody");
+
+        let bgClass = "bg-primary";
+        let iconClass = "bi-info-circle";
+        if (type === "success") { bgClass = "bg-success"; iconClass = "bi-check-circle"; }
+        if (type === "warning") { bgClass = "bg-warning text-dark"; iconClass = "bi-exclamation-triangle"; }
+        if (type === "danger" || type === "error") { bgClass = "bg-danger"; iconClass = "bi-exclamation-octagon"; }
+
+        if (headerEl) headerEl.className = `modal-header text-white ${bgClass}`;
+        if (titleEl) titleEl.innerHTML = `<i class="bi ${iconClass} me-2"></i> ${title}`;
+        if (bodyEl) bodyEl.innerHTML = message;
+
+        const modal = bootstrap.Modal.getOrCreateInstance(modalEl);
+        modal.show();
+    }
+
+    /**
+     * Muestra un Modal de Confirmación
+     */
+    showConfirm(title, message, onConfirm) {
+        const modalEl = document.getElementById("modalSystemConfirm");
+        if (!modalEl) {
+            if (confirm(message)) onConfirm();
+            return;
+        }
+
+        const titleEl = document.getElementById("modalSystemConfirmTitle");
+        const bodyEl = document.getElementById("modalSystemConfirmBody");
+        const btnEl = document.getElementById("modalSystemConfirmBtn");
+
+        if (titleEl) titleEl.innerHTML = `<i class="bi bi-question-circle me-2"></i> ${title}`;
+        if (bodyEl) bodyEl.innerHTML = message;
+
+        const modal = bootstrap.Modal.getOrCreateInstance(modalEl);
+
+        const newBtn = btnEl.cloneNode(true);
+        btnEl.parentNode.replaceChild(newBtn, btnEl);
+
+        newBtn.addEventListener("click", () => {
+            modal.hide();
+            if (typeof onConfirm === "function") onConfirm();
+        });
+
+        modal.show();
     }
 }
 

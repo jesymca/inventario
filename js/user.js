@@ -41,7 +41,7 @@ class UserManager {
             </div>
 
             <!-- Navegación por Pestañas del Comercio -->
-            <ul class="nav nav-pills mb-4 gap-2" id="userPillsTab" role="tablist">
+            <ul class="nav nav-pills mb-4 gap-2 flex-wrap" id="userPillsTab" role="tablist">
                 <li class="nav-item">
                     <button class="nav-link ${activeTab === 'tab-inventory' ? 'active' : ''}" id="pills-inventory-tab" data-bs-toggle="pill" data-bs-target="#pills-inventory" type="button"><i class="bi bi-box-seam me-1"></i> Inventario</button>
                 </li>
@@ -58,6 +58,15 @@ class UserManager {
                     <button class="nav-link ${activeTab === 'tab-suppliers' ? 'active' : ''}" id="pills-suppliers-tab" data-bs-toggle="pill" data-bs-target="#pills-suppliers" type="button"><i class="bi bi-truck me-1"></i> Proveedores</button>
                 </li>
                 <li class="nav-item">
+                    <button class="nav-link ${activeTab === 'tab-reports' ? 'active' : ''}" id="pills-reports-tab" data-bs-toggle="pill" data-bs-target="#pills-reports" type="button" onclick="User.loadDynamicReports()"><i class="bi bi-file-earmark-bar-graph me-1"></i> Reportes</button>
+                </li>
+                <li class="nav-item">
+                    <button class="nav-link ${activeTab === 'tab-stats' ? 'active' : ''}" id="pills-stats-tab" data-bs-toggle="pill" data-bs-target="#pills-stats" type="button" onclick="User.loadStatisticsCharts()"><i class="bi bi-graph-up-arrow me-1"></i> Estadísticas</button>
+                </li>
+                <li class="nav-item">
+                    <button class="nav-link ${activeTab === 'tab-maintenance' ? 'active' : ''}" id="pills-maintenance-tab" data-bs-toggle="pill" data-bs-target="#pills-maintenance" type="button" onclick="User.loadMaintenanceTab()"><i class="bi bi-database-down me-1"></i> Mantenimiento & Respaldos</button>
+                </li>
+                <li class="nav-item ms-auto">
                     <button class="nav-link ${activeTab === 'tab-profile' ? 'active' : ''}" id="pills-profile-tab" data-bs-toggle="pill" data-bs-target="#pills-profile" type="button"><i class="bi bi-gear me-1"></i> Perfil Negocio</button>
                 </li>
             </ul>
@@ -238,7 +247,157 @@ class UserManager {
                     </div>
                 </div>
 
-                <!-- 6. TAB PERFIL NEGOCIO -->
+                <!-- 6. TAB REPORTES DINÁMICOS -->
+                <div class="tab-pane fade ${activeTab === 'tab-reports' ? 'show active' : ''}" id="pills-reports">
+                    <div class="card shadow-sm border-0 mb-4">
+                        <div class="card-header bg-body py-3">
+                            <h5 class="mb-0 fw-bold"><i class="bi bi-file-earmark-bar-graph me-2 text-primary"></i> Generador Dinámico de Reportes</h5>
+                        </div>
+                        <div class="card-body bg-light border-bottom">
+                            <div class="row g-3 align-items-end">
+                                <div class="col-md-3">
+                                    <label class="form-label fw-semibold">Tipo de Reporte</label>
+                                    <select id="reportTypeSelect" class="form-select" onchange="User.loadDynamicReports()">
+                                        <option value="sales">Ventas Realizadas</option>
+                                        <option value="purchases">Compras Realizadas</option>
+                                        <option value="products">Inventario de Productos</option>
+                                        <option value="clients">Directorio de Clientes</option>
+                                        <option value="suppliers">Directorio de Proveedores</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-3">
+                                    <label class="form-label fw-semibold">Fecha Inicio</label>
+                                    <input type="date" id="reportStartDate" class="form-control" onchange="User.loadDynamicReports()">
+                                </div>
+                                <div class="col-md-3">
+                                    <label class="form-label fw-semibold">Fecha Fin</label>
+                                    <input type="date" id="reportEndDate" class="form-control" onchange="User.loadDynamicReports()">
+                                </div>
+                                <div class="col-md-3">
+                                    <label class="form-label fw-semibold d-block">Accesos Rápidos</label>
+                                    <div class="btn-group btn-group-sm w-100">
+                                        <button class="btn btn-outline-secondary" onclick="User.setReportDateShortcut('today')">Hoy</button>
+                                        <button class="btn btn-outline-secondary" onclick="User.setReportDateShortcut('month')">Este Mes</button>
+                                        <button class="btn btn-outline-secondary" onclick="User.setReportDateShortcut('year')">Año</button>
+                                        <button class="btn btn-outline-secondary" onclick="User.setReportDateShortcut('all')">Todo</button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="card-body p-4" id="reportContainer">
+                            <!-- Contenido dinámico del reporte o advertencia de no datos -->
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 7. TAB ESTADÍSTICAS Y MÉTRICAS -->
+                <div class="tab-pane fade ${activeTab === 'tab-stats' ? 'show active' : ''}" id="pills-stats">
+                    <div class="card shadow-sm border-0 mb-4">
+                        <div class="card-header bg-body d-flex justify-content-between align-items-center py-3">
+                            <h5 class="mb-0 fw-bold"><i class="bi bi-graph-up-arrow me-2 text-success"></i> Estadísticas del Negocio</h5>
+                            <div class="btn-group btn-group-sm" id="statsMetricSelector">
+                                <button class="btn btn-outline-primary active" onclick="User.switchStatsMetric('usd', this)">$ USD</button>
+                                <button class="btn btn-outline-primary" onclick="User.switchStatsMetric('ves', this)">Bs. VES</button>
+                                <button class="btn btn-outline-primary" onclick="User.switchStatsMetric('qty', this)">Unidades</button>
+                            </div>
+                        </div>
+                        <div class="card-body p-4">
+                            <div class="row g-4">
+                                <div class="col-md-7">
+                                    <div class="card border shadow-sm p-3 h-100">
+                                        <h6 class="fw-bold mb-3 text-secondary"><i class="bi bi-bar-chart-line me-1"></i> Comportamiento de Ventas vs Compras</h6>
+                                        <div style="position: relative; min-height: 280px;">
+                                            <canvas id="chartSalesVsPurchases"></canvas>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-5">
+                                    <div class="card border shadow-sm p-3 h-100">
+                                        <h6 class="fw-bold mb-3 text-secondary"><i class="bi bi-pie-chart me-1"></i> Productos y Categorías Más Vendidas</h6>
+                                        <div style="position: relative; min-height: 280px;">
+                                            <canvas id="chartTopProducts"></canvas>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 8. TAB MANTENIMIENTO Y RESPALDOS -->
+                <div class="tab-pane fade ${activeTab === 'tab-maintenance' ? 'show active' : ''}" id="pills-maintenance">
+                    <div class="card shadow-sm border-0 mb-4">
+                        <div class="card-header bg-body py-3">
+                            <h5 class="mb-0 fw-bold"><i class="bi bi-database-down me-2 text-warning"></i> Mantenimiento & Exportación de Respaldos</h5>
+                        </div>
+                        <div class="card-body p-4">
+                            <div class="row g-4">
+                                <div class="col-md-6">
+                                    <div class="card border p-3 shadow-sm h-100">
+                                        <h6 class="fw-bold text-primary mb-3"><i class="bi bi-download me-1"></i> Generar y Descargar Copia de Seguridad</h6>
+                                        <p class="small text-muted mb-3">Selecciona los módulos y el formato para exportar tus datos locales.</p>
+                                        <form onsubmit="User.executeDataBackup(event)">
+                                            <div class="mb-3">
+                                                <label class="form-label fw-semibold small">Módulos a Exportar:</label>
+                                                <div class="form-check">
+                                                    <input class="form-check-input" type="checkbox" id="chkExpProducts" checked>
+                                                    <label class="form-check-label" for="chkExpProducts">Inventario de Productos</label>
+                                                </div>
+                                                <div class="form-check">
+                                                    <input class="form-check-input" type="checkbox" id="chkExpSales" checked>
+                                                    <label class="form-check-label" for="chkExpSales">Histórico de Ventas</label>
+                                                </div>
+                                                <div class="form-check">
+                                                    <input class="form-check-input" type="checkbox" id="chkExpPurchases" checked>
+                                                    <label class="form-check-label" for="chkExpPurchases">Histórico de Compras</label>
+                                                </div>
+                                                <div class="form-check">
+                                                    <input class="form-check-input" type="checkbox" id="chkExpClients" checked>
+                                                    <label class="form-check-label" for="chkExpClients">Directorio de Clientes</label>
+                                                </div>
+                                                <div class="form-check">
+                                                    <input class="form-check-input" type="checkbox" id="chkExpSuppliers" checked>
+                                                    <label class="form-check-label" for="chkExpSuppliers">Directorio de Proveedores</label>
+                                                </div>
+                                            </div>
+                                            <div class="mb-4">
+                                                <label class="form-label fw-semibold small">Formato de Descarga:</label>
+                                                <select id="exportFormatSelect" class="form-select">
+                                                    <option value="SQL">Script SQL (Sentencias INSERT INTO)</option>
+                                                    <option value="CSV">Archivos CSV (Separado por Comas)</option>
+                                                    <option value="JSON">Estructura JSON (Para Respaldos)</option>
+                                                </select>
+                                            </div>
+                                            <button type="submit" class="btn btn-warning w-100 fw-bold py-2"><i class="bi bi-cloud-arrow-down me-1"></i> Descargar Copia de Seguridad</button>
+                                        </form>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="card border p-3 shadow-sm h-100">
+                                        <h6 class="fw-bold text-secondary mb-3"><i class="bi bi-clock-history me-1"></i> Histórico de Respaldos Descargados</h6>
+                                        <div class="table-responsive">
+                                            <table class="table table-sm table-striped align-middle mb-0 small">
+                                                <thead>
+                                                    <tr>
+                                                        <th>Fecha/Hora</th>
+                                                        <th>Módulos</th>
+                                                        <th>Formato</th>
+                                                        <th>Registros</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody id="exportHistoryTableBody">
+                                                    <!-- Se llena dinámicamente -->
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 9. TAB PERFIL NEGOCIO -->
                 <div class="tab-pane fade ${activeTab === 'tab-profile' ? 'show active' : ''}" id="pills-profile">
                     <div class="row g-4">
                         <div class="col-md-7">
@@ -251,11 +410,15 @@ class UserManager {
                                             <input type="text" class="form-control" name="name" value="${currentBiz.name || ''}" required>
                                         </div>
                                         <div class="row g-3 mb-3">
-                                            <div class="col-md-6">
+                                            <div class="col-md-4">
+                                                <label class="form-label fw-semibold text-primary"><i class="bi bi-card-text me-1"></i> Número RIF</label>
+                                                <input type="text" class="form-control fw-bold" name="rif" placeholder="Ej: J-12345678-9" value="${currentBiz.rif || ''}">
+                                            </div>
+                                            <div class="col-md-4">
                                                 <label class="form-label fw-semibold">Teléfono (WhatsApp)</label>
                                                 <input type="text" class="form-control" name="phone" value="${currentBiz.phone || ''}">
                                             </div>
-                                            <div class="col-md-6">
+                                            <div class="col-md-4">
                                                 <label class="form-label fw-semibold">Correo Electrónico</label>
                                                 <input type="email" class="form-control" name="email" value="${currentBiz.email || ''}">
                                             </div>
@@ -1482,6 +1645,338 @@ class UserManager {
         if (type === "products") this.loadProductsTable();
         if (type === "clients") this.loadClientsTable();
         if (type === "suppliers") this.loadSuppliersTable();
+    }
+
+    openReportIncidentModal() {
+        const modal = new bootstrap.Modal(document.getElementById("modalReportIncident"));
+        modal.show();
+    }
+
+    // --- MÓDULO REPORTES DINÁMICOS ---
+    setReportDateShortcut(shortcut) {
+        const startInput = document.getElementById("reportStartDate");
+        const endInput = document.getElementById("reportEndDate");
+        if (!startInput || !endInput) return;
+
+        const now = new Date();
+        let start = new Date();
+        let end = new Date();
+
+        if (shortcut === 'today') {
+            start = now;
+            end = now;
+        } else if (shortcut === 'month') {
+            start = new Date(now.getFullYear(), now.getMonth(), 1);
+            end = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+        } else if (shortcut === 'year') {
+            start = new Date(now.getFullYear(), 0, 1);
+            end = new Date(now.getFullYear(), 11, 31);
+        } else if (shortcut === 'all') {
+            startInput.value = "";
+            endInput.value = "";
+            this.loadDynamicReports();
+            return;
+        }
+
+        startInput.value = start.toISOString().split("T")[0];
+        endInput.value = end.toISOString().split("T")[0];
+        this.loadDynamicReports();
+    }
+
+    async loadDynamicReports() {
+        const container = document.getElementById("reportContainer");
+        if (!container || !Auth.currentBusiness) return;
+
+        const typeSelect = document.getElementById("reportTypeSelect");
+        const startInput = document.getElementById("reportStartDate");
+        const endInput = document.getElementById("reportEndDate");
+
+        const type = typeSelect ? typeSelect.value : "sales";
+        const startDateStr = startInput ? startInput.value : "";
+        const endDateStr = endInput ? endInput.value : "";
+
+        let items = DB.getLocalTable(type).filter(i => i.business_id === Auth.currentBusiness.id);
+
+        if (startDateStr || endDateStr) {
+            items = items.filter(i => {
+                const itemDate = new Date(i.created_at || i.date || 0);
+                if (startDateStr && itemDate < new Date(startDateStr + "T00:00:00")) return false;
+                if (endDateStr && itemDate > new Date(endDateStr + "T23:59:59")) return false;
+                return true;
+            });
+        }
+
+        if (items.length === 0) {
+            container.innerHTML = `
+                <div class="alert alert-warning text-center p-4 my-3 rounded-3 border-warning shadow-sm">
+                    <i class="bi bi-exclamation-triangle-fill display-4 text-warning mb-2 d-block"></i>
+                    <h5 class="fw-bold text-dark">No existen registros para generar el reporte</h5>
+                    <p class="text-muted mb-0">No se encontraron datos que coincidan con la categoría seleccionada (${type.toUpperCase()}) ${startDateStr ? 'del ' + startDateStr : ''} ${endDateStr ? 'al ' + endDateStr : ''}. Prueba con otro rango de fechas o agrega nuevos registros.</p>
+                </div>
+            `;
+            return;
+        }
+
+        let tableHtml = "";
+
+        if (type === "sales") {
+            const totalUsd = items.reduce((sum, s) => sum + Number(s.total_usd || 0), 0);
+            const totalVes = items.reduce((sum, s) => sum + Number(s.total_ves || 0), 0);
+
+            tableHtml = `
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <div>
+                        <h6 class="fw-bold mb-0">Reporte de Ventas (${items.length} Registros)</h6>
+                        <small class="text-muted">Total acumulado: <strong class="text-success">$${totalUsd.toFixed(2)} USD</strong> (Bs. ${totalVes.toFixed(2)})</small>
+                    </div>
+                    <button class="btn btn-sm btn-outline-danger fw-bold" onclick="PDFGenerator.generateSalesPDF(DB.getLocalTable('sales').filter(s => s.business_id === Auth.currentBusiness.id), Auth.currentBusiness)"><i class="bi bi-file-earmark-pdf me-1"></i> Descargar PDF</button>
+                </div>
+                <div class="table-responsive">
+                    <table class="table table-striped align-middle mb-0">
+                        <thead class="table-dark">
+                            <tr>
+                                <th>#</th>
+                                <th>Fecha</th>
+                                <th>Cliente</th>
+                                <th>Productos</th>
+                                <th>Total ($ USD)</th>
+                                <th>Total (Bs)</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${items.map((s, idx) => `
+                                <tr>
+                                    <td>${idx + 1}</td>
+                                    <td>${new Date(s.created_at).toLocaleString()}</td>
+                                    <td>${s.client_name || 'Cliente Ocasional'}</td>
+                                    <td><small>${(s.items || []).map(i => i.name + ' (x' + i.quantity + ')').join(', ')}</small></td>
+                                    <td><strong class="text-success">$${Number(s.total_usd).toFixed(2)}</strong></td>
+                                    <td>Bs. ${Number(s.total_ves).toFixed(2)}</td>
+                                </tr>
+                            `).join("")}
+                        </tbody>
+                    </table>
+                </div>
+            `;
+        } else if (type === "purchases") {
+            const totalUsd = items.reduce((sum, p) => sum + Number(p.total_usd || 0), 0);
+
+            tableHtml = `
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <div>
+                        <h6 class="fw-bold mb-0">Reporte de Compras (${items.length} Registros)</h6>
+                        <small class="text-muted">Inversión Total: <strong class="text-danger">$${totalUsd.toFixed(2)} USD</strong></small>
+                    </div>
+                    <button class="btn btn-sm btn-outline-danger fw-bold" onclick="PDFGenerator.generatePurchasesPDF(DB.getLocalTable('purchases').filter(p => p.business_id === Auth.currentBusiness.id), Auth.currentBusiness)"><i class="bi bi-file-earmark-pdf me-1"></i> Descargar PDF</button>
+                </div>
+                <div class="table-responsive">
+                    <table class="table table-striped align-middle mb-0">
+                        <thead class="table-dark">
+                            <tr>
+                                <th>#</th>
+                                <th>Fecha</th>
+                                <th>Proveedor</th>
+                                <th>Productos</th>
+                                <th>Total ($ USD)</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${items.map((p, idx) => `
+                                <tr>
+                                    <td>${idx + 1}</td>
+                                    <td>${new Date(p.created_at).toLocaleString()}</td>
+                                    <td>${p.supplier_name || 'Proveedor General'}</td>
+                                    <td><small>${p.items ? p.items.map(i => i.name + ' (x' + i.quantity + ')').join(', ') : (p.product_name || 'Mercancía')}</small></td>
+                                    <td><strong class="text-danger">$${Number(p.total_usd).toFixed(2)}</strong></td>
+                                </tr>
+                            `).join("")}
+                        </tbody>
+                    </table>
+                </div>
+            `;
+        } else if (type === "products") {
+            tableHtml = `
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h6 class="fw-bold mb-0">Reporte de Inventario de Productos (${items.length} Productos)</h6>
+                    <button class="btn btn-sm btn-outline-danger fw-bold" onclick="PDFGenerator.generateInventoryPDF(DB.getLocalTable('products').filter(p=>p.business_id === Auth.currentBusiness.id), Auth.currentBusiness)"><i class="bi bi-file-earmark-pdf me-1"></i> Descargar PDF</button>
+                </div>
+                <div class="table-responsive">
+                    <table class="table table-striped align-middle mb-0">
+                        <thead class="table-dark">
+                            <tr>
+                                <th>#</th>
+                                <th>Producto</th>
+                                <th>Categoría</th>
+                                <th>Stock</th>
+                                <th>P. Compra ($)</th>
+                                <th>P. Venta ($)</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${items.map((p, idx) => `
+                                <tr>
+                                    <td>${idx + 1}</td>
+                                    <td><strong>${p.name}</strong></td>
+                                    <td><span class="badge bg-secondary">${p.category || 'General'}</span></td>
+                                    <td><span class="badge ${p.quantity > 5 ? 'bg-success' : 'bg-danger'}">${p.quantity}</span></td>
+                                    <td>$${Number(p.purchase_price).toFixed(2)}</td>
+                                    <td><strong class="text-primary">$${Number(p.sale_price).toFixed(2)}</strong></td>
+                                </tr>
+                            `).join("")}
+                        </tbody>
+                    </table>
+                </div>
+            `;
+        } else {
+            tableHtml = `
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h6 class="fw-bold mb-0">Reporte (${items.length} Registros)</h6>
+                </div>
+                <div class="table-responsive">
+                    <table class="table table-striped align-middle">
+                        <thead class="table-dark">
+                            <tr><th>#</th><th>Nombre / Identificación</th><th>Contacto</th><th>Dirección</th></tr>
+                        </thead>
+                        <tbody>
+                            ${items.map((i, idx) => `
+                                <tr>
+                                    <td>${idx + 1}</td>
+                                    <td><strong>${i.name}</strong> ${i.identity_card ? '(' + i.identity_card + ')' : ''}</td>
+                                    <td>${i.phone || i.email || 'N/A'}</td>
+                                    <td>${i.address || 'N/A'}</td>
+                                </tr>
+                            `).join("")}
+                        </tbody>
+                    </table>
+                </div>
+            `;
+        }
+
+        container.innerHTML = tableHtml;
+    }
+
+    // --- MÓDULO ESTADÍSTICAS (CHART.JS) ---
+    switchStatsMetric(metric, btn) {
+        this.currentStatsMetric = metric;
+        if (btn && btn.parentNode) {
+            const btns = btn.parentNode.querySelectorAll("button");
+            btns.forEach(b => b.classList.remove("active"));
+            btn.classList.add("active");
+        }
+        this.loadStatisticsCharts();
+    }
+
+    async loadStatisticsCharts() {
+        if (!Auth.currentBusiness) return;
+        const metric = this.currentStatsMetric || "usd";
+
+        const ctx1 = document.getElementById("chartSalesVsPurchases");
+        const ctx2 = document.getElementById("chartTopProducts");
+
+        if (!ctx1 || !ctx2 || typeof Chart === "undefined") return;
+
+        const sales = DB.getLocalTable("sales").filter(s => s.business_id === Auth.currentBusiness.id);
+        const purchases = DB.getLocalTable("purchases").filter(p => p.business_id === Auth.currentBusiness.id);
+
+        const monthMap = {};
+        sales.forEach(s => {
+            const month = s.created_at ? s.created_at.slice(0, 7) : "Mes Actual";
+            if (!monthMap[month]) monthMap[month] = { sales: 0, purchases: 0 };
+            monthMap[month].sales += metric === "usd" ? Number(s.total_usd || 0) : (metric === "ves" ? Number(s.total_ves || 0) : (s.items || []).reduce((q, item) => q + Number(item.quantity || 1), 0));
+        });
+
+        purchases.forEach(p => {
+            const month = p.created_at ? p.created_at.slice(0, 7) : "Mes Actual";
+            if (!monthMap[month]) monthMap[month] = { sales: 0, purchases: 0 };
+            monthMap[month].purchases += metric === "usd" ? Number(p.total_usd || 0) : (metric === "ves" ? Number(p.total_usd * CONFIG.DEFAULT_BCV_RATE || 0) : (p.items || []).reduce((q, item) => q + Number(item.quantity || 1), 0));
+        });
+
+        const labels = Object.keys(monthMap).sort();
+        if (labels.length === 0) labels.push("Sin datos");
+
+        const salesData = labels.map(l => monthMap[l] ? monthMap[l].sales : 0);
+        const purchasesData = labels.map(l => monthMap[l] ? monthMap[l].purchases : 0);
+
+        if (this._chart1) this._chart1.destroy();
+        this._chart1 = new Chart(ctx1, {
+            type: "bar",
+            data: {
+                labels: labels,
+                datasets: [
+                    { label: `Ventas (${metric.toUpperCase()})`, data: salesData, backgroundColor: "rgba(25, 135, 84, 0.7)", borderColor: "#198754", borderWidth: 1 },
+                    { label: `Compras (${metric.toUpperCase()})`, data: purchasesData, backgroundColor: "rgba(220, 53, 69, 0.7)", borderColor: "#dc3545", borderWidth: 1 }
+                ]
+            },
+            options: { responsive: true, maintainAspectRatio: false }
+        });
+
+        const prodMap = {};
+        sales.forEach(s => {
+            (s.items || []).forEach(item => {
+                const name = item.name || "Producto";
+                prodMap[name] = (prodMap[name] || 0) + Number(item.quantity || 1);
+            });
+        });
+
+        const topProds = Object.keys(prodMap).sort((a, b) => prodMap[b] - prodMap[a]).slice(0, 5);
+        const topQty = topProds.map(p => prodMap[p]);
+
+        if (this._chart2) this._chart2.destroy();
+        this._chart2 = new Chart(ctx2, {
+            type: "doughnut",
+            data: {
+                labels: topProds.length > 0 ? topProds : ["Sin ventas aún"],
+                datasets: [{
+                    data: topQty.length > 0 ? topQty : [1],
+                    backgroundColor: ["#0d6efd", "#198754", "#ffc107", "#0dcaf0", "#6c757d"]
+                }]
+            },
+            options: { responsive: true, maintainAspectRatio: false }
+        });
+    }
+
+    // --- MÓDULO MANTENIMIENTO Y RESPALDOS ---
+    async loadMaintenanceTab() {
+        const tbody = document.getElementById("exportHistoryTableBody");
+        if (!tbody || !Auth.currentBusiness) return;
+
+        const exportsList = DB.getLocalTable("data_exports").filter(e => e.business_id === Auth.currentBusiness.id);
+
+        if (exportsList.length === 0) {
+            tbody.innerHTML = `<tr><td colspan="4" class="text-center text-muted py-3">No has realizado descargas de respaldo aún.</td></tr>`;
+            return;
+        }
+
+        tbody.innerHTML = exportsList.map(e => `
+            <tr>
+                <td>${new Date(e.created_at).toLocaleString()}</td>
+                <td><small>${e.modules}</small></td>
+                <td><span class="badge bg-primary">${e.format}</span></td>
+                <td><strong>${e.record_count}</strong> reg.</td>
+            </tr>
+        `).join("");
+    }
+
+    async executeDataBackup(event) {
+        event.preventDefault();
+        if (!Auth.currentBusiness) return;
+
+        const selectedModules = [];
+        if (document.getElementById("chkExpProducts").checked) selectedModules.push("products");
+        if (document.getElementById("chkExpSales").checked) selectedModules.push("sales");
+        if (document.getElementById("chkExpPurchases").checked) selectedModules.push("purchases");
+        if (document.getElementById("chkExpClients").checked) selectedModules.push("clients");
+        if (document.getElementById("chkExpSuppliers").checked) selectedModules.push("suppliers");
+
+        if (selectedModules.length === 0) {
+            return AppUI.showAlert("Aviso", "Selecciona al menos un módulo para exportar.", "warning");
+        }
+
+        const format = document.getElementById("exportFormatSelect").value;
+        const result = await ImportExport.generateBackupDownload(selectedModules, format, Auth.currentBusiness.id);
+
+        AppUI.showAlert("Respaldo Exitoso", `Se han descargado ${result.count} registros en formato ${format}.`, "success");
+        this.loadMaintenanceTab();
     }
 }
 

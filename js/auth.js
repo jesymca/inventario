@@ -274,6 +274,12 @@ class AuthManager {
      * Procesa la asociación de cuentas/negocios post-login
      */
     async handlePostLogin(user) {
+        if (user && Number(user.is_active) === 0) {
+            const err = new Error("Tu cuenta se encuentra suspendida por el administrador.");
+            err.code = "SUSPENDED";
+            throw err;
+        }
+
         // Buscar todos los comercios donde el usuario es dueño o admin delegado
         const ownedRes = await DB.query("SELECT * FROM businesses WHERE owner_user_id = ?", [user.id]);
         const ownedBizs = ownedRes.rows || [];
