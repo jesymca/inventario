@@ -453,11 +453,27 @@ class AdminManager {
         CONFIG.MEMBERSHIP_PRICE_USD = priceVal;
         CONFIG.DEFAULT_BCV_RATE = rateVal;
 
+        // Guardar en localStorage (inmediato)
         DB.setLocalRecord("settings", { key_name: "membership_price_usd", value: String(priceVal) });
         DB.setLocalRecord("settings", { key_name: "bcv_rate", value: String(rateVal) });
 
-        AppUI.updateLandingMembershipPrice();
-        alert("¡Tarifas del sistema actualizadas correctamente! El valor de membresía en la Landing Page y el sistema ahora depende de tu configuración.");
+        // Guardar también en Turso (persistencia global para todos los dispositivos)
+        try {
+            await DB.query(
+                "INSERT OR REPLACE INTO settings (key_name, value) VALUES (?, ?)",
+                ["membership_price_usd", String(priceVal)]
+            );
+            await DB.query(
+                "INSERT OR REPLACE INTO settings (key_name, value) VALUES (?, ?)",
+                ["bcv_rate", String(rateVal)]
+            );
+        } catch (e) {
+            console.warn("No se pudo sincronizar con Turso, se guardó solo en localStorage:", e.message);
+        }
+
+        // Actualizar el precio en la landing page
+        AppUI.updateLandingMembershipPrice(priceVal);
+        alert("¡Tarifas del sistema actualizadas correctamente! Precio de membresía: $" + priceVal.toFixed(2) + " USD/mes");
     }
 }
 

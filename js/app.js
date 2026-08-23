@@ -9,11 +9,38 @@ class AppUIManager {
         this.applyTheme(this.currentTheme);
     }
 
-    init() {
+    async init() {
         this.renderNavbar();
         this.renderApp();
         this.initGoogleAuth();
-        // Actualiza precio de membresía en la landing desde localStorage al cargar
+        // Cargar precio desde Turso/localStorage y actualizar landing
+        await this.loadAndUpdateMembershipPrice();
+    }
+
+    /**
+     * Carga el precio de membresía desde Turso (o localStorage) y actualiza el span en la landing
+     */
+    async loadAndUpdateMembershipPrice() {
+        try {
+            // Intentar leer desde Turso primero
+            const result = await DB.query(
+                "SELECT value FROM settings WHERE key_name = 'membership_price_usd' LIMIT 1"
+            );
+            if (result && result.rows && result.rows.length > 0) {
+                const val = result.rows[0].value;
+                const parsed = parseFloat(String(val).replace(/[^0-9.]/g, ''));
+                if (!isNaN(parsed) && parsed > 0) {
+                    CONFIG.MEMBERSHIP_PRICE_USD = parsed;
+                    // Sincronizar en localStorage también
+                    DB.setLocalRecord("settings", { key_name: "membership_price_usd", value: String(parsed) });
+                    this.updateLandingMembershipPrice(parsed);
+                    return;
+                }
+            }
+        } catch (e) {
+            // Si Turso falla, usar localStorage
+        }
+        // Fallback: leer de localStorage
         this.updateLandingMembershipPrice();
     }
 
@@ -218,30 +245,33 @@ class AppUIManager {
 
     /**
      * Actualiza dinámicamente el precio de membresía en la Landing Page
-     * Lee directamente de localStorage para garantizar el valor más reciente
+     * @param {number|null} forcedPrice - Si se provee, usa este valor directamente sin leer localStorage
      */
-    updateLandingMembershipPrice() {
-        // Leer precio directamente de localStorage (fuente de verdad)
+    updateLandingMembershipPrice(forcedPrice = null) {
         let price = 10.00;
-        try {
-            const raw = localStorage.getItem("inv_db_settings");
-            if (raw) {
-                const settings = JSON.parse(raw);
-                const found = settings.find(s => s.key_name === "membership_price_usd");
-                if (found && found.value) {
-                    const parsed = parseFloat(String(found.value).replace(/[^0-9.]/g, ''));
-                    if (!isNaN(parsed) && parsed > 0) price = parsed;
+
+        if (forcedPrice !== null && !isNaN(forcedPrice) && forcedPrice > 0) {
+            price = forcedPrice;
+        } else {
+            // Leer precio directamente de localStorage (fuente de verdad local)
+            try {
+                const raw = localStorage.getItem("inv_db_settings");
+                if (raw) {
+                    const settings = JSON.parse(raw);
+                    const found = settings.find(s => s.key_name === "membership_price_usd");
+                    if (found && found.value) {
+                        const parsed = parseFloat(String(found.value).replace(/[^0-9.]/g, ''));
+                        if (!isNaN(parsed) && parsed > 0) price = parsed;
+                    }
                 }
+            } catch (e) {
+                price = CONFIG.MEMBERSHIP_PRICE_USD;
             }
-        } catch (e) {
-            price = CONFIG.MEMBERSHIP_PRICE_USD;
         }
 
-        // Actualizar todos los elementos que muestran el precio de membresía
-        ["membershipPriceLanding"].forEach(id => {
-            const el = document.getElementById(id);
-            if (el) el.innerText = price.toFixed(2);
-        });
+        // Actualizar el span en la landing page
+        const el = document.getElementById("membershipPriceLanding");
+        if (el) el.innerText = price.toFixed(2);
     }
 
     /**
