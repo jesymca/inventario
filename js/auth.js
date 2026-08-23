@@ -347,8 +347,21 @@ class AuthManager {
      * Calcula los días restantes de membresía activa
      */
     getRemainingMembershipDays() {
-        if (!this.currentUser || !this.currentUser.membership_expires_at) return 0;
-        const expire = new Date(this.currentUser.membership_expires_at);
+        if (!this.currentUser) return 0;
+
+        let expiresAt = this.currentUser.membership_expires_at;
+        const users = DB.getLocalTable("users");
+        const u = users.find(x => x.id === this.currentUser.id || (x.email && x.email.toLowerCase() === this.currentUser.email.toLowerCase()));
+
+        if (u) {
+            if (u.membership_expires_at) expiresAt = u.membership_expires_at;
+            this.currentUser.membership_expires_at = u.membership_expires_at;
+            this.currentUser.membership_type = u.membership_type;
+            this.currentUser.is_active = u.is_active;
+        }
+
+        if (!expiresAt) return 0;
+        const expire = new Date(expiresAt);
         const diffMs = expire - new Date();
         const diffDays = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
         return diffDays > 0 ? diffDays : 0;

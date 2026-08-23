@@ -465,20 +465,35 @@ class AdminManager {
         if (!tbody) return;
 
         let users = [];
+        const localUsers = DB.getLocalTable("users");
+
         try {
             const res = await DB.query("SELECT * FROM users");
             if (res && res.rows && res.rows.length > 0) {
                 users = res.rows;
+                // Fusionar inteligentemente manteniendo datos de membresía si en Turso vino nulo
+                users = users.map(tu => {
+                    const lu = localUsers.find(l => l.id === tu.id || (l.email && l.email.toLowerCase() === tu.email.toLowerCase()));
+                    if (lu) {
+                        return {
+                            ...lu,
+                            ...tu,
+                            membership_expires_at: tu.membership_expires_at || lu.membership_expires_at,
+                            membership_type: tu.membership_type || lu.membership_type,
+                            is_active: tu.is_active !== undefined && tu.is_active !== null ? tu.is_active : lu.is_active
+                        };
+                    }
+                    return tu;
+                });
                 users.forEach(u => DB.setLocalRecord("users", u));
             } else {
-                users = DB.getLocalTable("users");
+                users = localUsers;
             }
         } catch (e) {
-            users = DB.getLocalTable("users");
+            users = localUsers;
         }
 
         // Combinar con LocalStorage para asegurar que cualquier registro local esté visible
-        const localUsers = DB.getLocalTable("users");
         localUsers.forEach(lu => {
             if (!users.some(u => u.id === lu.id || u.email.toLowerCase() === lu.email.toLowerCase())) {
                 users.push(lu);
