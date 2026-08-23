@@ -680,8 +680,31 @@
                                 <input type="date" name="payment_date" class="form-control" required>
                             </div>
                         </div>
-                        <button type="submit" class="btn btn-success w-100 py-2">Enviar Reporte para Verificación Admin</button>
+                        <div class="mb-3">
+                            <label class="form-label fw-semibold text-primary"><i class="bi bi-camera me-1"></i> Adjuntar Capture / Comprobante de Pago</label>
+                            <input type="file" id="paymentProofFile" class="form-control" accept="image/png, image/jpeg, image/webp, application/pdf" required>
+                            <div class="form-text small">Sube una captura de pantalla o comprobante (JPG, PNG o PDF) emitido por tu banco o plataforma de pago.</div>
+                        </div>
+                        <button type="submit" class="btn btn-success w-100 py-2 fs-6 fw-bold"><i class="bi bi-cloud-arrow-up me-1"></i> Enviar Reporte con Comprobante</button>
                     </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 15. MODAL VER COMPROBANTE DE PAGO (ADMIN) -->
+    <div class="modal fade" id="modalViewPaymentProof" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-lg modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header bg-dark text-white">
+                    <h5 class="modal-title fw-bold"><i class="bi bi-file-earmark-image me-2"></i> Ver Comprobante / Capture de Pago</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body text-center p-3" id="paymentProofModalBody">
+                    <!-- Contenido dinámico del comprobante -->
+                </div>
+                <div class="modal-footer justify-content-between" id="paymentProofModalFooter">
+                    <!-- Botones dinámicos de aprobación o rechazo -->
                 </div>
             </div>
         </div>
@@ -751,15 +774,15 @@
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script>
 
     <!-- Scripts del Sistema -->
-    <script src="./js/config.js?v=1.0.5"></script>
-    <script src="./js/db.js?v=1.0.5"></script>
-    <script src="./js/storage.js?v=1.0.5"></script>
-    <script src="./js/pdf_reports.js?v=1.0.5"></script>
-    <script src="./js/import_export.js?v=1.0.5"></script>
-    <script src="./js/auth.js?v=1.0.5"></script>
-    <script src="./js/admin.js?v=1.0.5"></script>
-    <script src="./js/user.js?v=1.0.5"></script>
-    <script src="./js/presets.js?v=1.0.5"></script>
-    <script src="./js/app.js?v=1.0.5"></script>
+    <script src="./js/config.js?v=1.0.6"></script>
+    <script src="./js/db.js?v=1.0.6"></script>
+    <script src="./js/storage.js?v=1.0.6"></script>
+    <script src="./js/pdf_reports.js?v=1.0.6"></script>
+    <script src="./js/import_export.js?v=1.0.6"></script>
+    <script src="./js/auth.js?v=1.0.6"></script>
+    <script src="./js/admin.js?v=1.0.6"></script>
+    <script src="./js/user.js?v=1.0.6"></script>
+    <script src="./js/presets.js?v=1.0.6"></script>
+    <script src="./js/app.js?v=1.0.6"></script>
 </body>
 </html>

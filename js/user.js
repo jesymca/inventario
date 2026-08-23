@@ -1226,14 +1226,20 @@ class UserManager {
         event.preventDefault();
         const form = event.target;
         const methodId = form.method_id.value;
+        const proofInput = document.getElementById("paymentProofFile");
+        let proofUrl = "";
+
+        if (proofInput && proofInput.files && proofInput.files[0]) {
+            proofUrl = await Storage.uploadImage(proofInput.files[0]);
+        }
 
         const amountUsd = CONFIG.MEMBERSHIP_PRICE_USD;
         const amountVes = amountUsd * CONFIG.DEFAULT_BCV_RATE;
 
         const newPayment = {
             id: "pay_" + Date.now(),
-            user_id: Auth.currentUser.id,
-            business_id: Auth.currentBusiness.id,
+            user_id: Auth.currentUser ? Auth.currentUser.id : "",
+            business_id: Auth.currentBusiness ? Auth.currentBusiness.id : "",
             payment_method_id: methodId,
             amount_usd: amountUsd,
             amount_ves: amountVes,
@@ -1241,20 +1247,33 @@ class UserManager {
             reference_number: form.reference_number.value,
             bank_origin: form.bank_origin.value,
             payment_date: form.payment_date.value,
+            proof_url: proofUrl,
             status: "pendiente",
             created_at: new Date().toISOString()
         };
 
-        await DB.query(
-            `INSERT INTO payments (id, user_id, business_id, payment_method_id, amount_usd, amount_ves, bcv_rate, reference_number, bank_origin, payment_date, status)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-            [newPayment.id, newPayment.user_id, newPayment.business_id, newPayment.payment_method_id, newPayment.amount_usd, newPayment.amount_ves, newPayment.bcv_rate, newPayment.reference_number, newPayment.bank_origin, newPayment.payment_date, newPayment.status]
-        );
+        try {
+            await DB.query(
+                `INSERT INTO payments (id, user_id, business_id, payment_method_id, amount_usd, amount_ves, bcv_rate, reference_number, bank_origin, payment_date, proof_url, status)
+                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                [newPayment.id, newPayment.user_id, newPayment.business_id, newPayment.payment_method_id, newPayment.amount_usd, newPayment.amount_ves, newPayment.bcv_rate, newPayment.reference_number, newPayment.bank_origin, newPayment.payment_date, newPayment.proof_url, newPayment.status]
+            );
+        } catch (e) {
+            try {
+                await DB.query(
+                    `INSERT INTO payments (id, user_id, business_id, payment_method_id, amount_usd, amount_ves, bcv_rate, reference_number, bank_origin, payment_date, status)
+                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                    [newPayment.id, newPayment.user_id, newPayment.business_id, newPayment.payment_method_id, newPayment.amount_usd, newPayment.amount_ves, newPayment.bcv_rate, newPayment.reference_number, newPayment.bank_origin, newPayment.payment_date, newPayment.status]
+                );
+            } catch (err) {
+                console.warn("Saving to local storage:", err);
+            }
+        }
         DB.setLocalRecord("payments", newPayment);
 
         bootstrap.Modal.getInstance(document.getElementById("modalReportPayment")).hide();
         form.reset();
-        alert("Tu pago ha sido reportado con éxito. El Administrador verificará los datos en breve.");
+        alert("¡Comprobante de pago enviado con éxito! El Administrador revisará tu archivo adjunto para verificar y activar tu membresía.");
     }
 
     async saveBusinessProfile(event) {

@@ -138,6 +138,7 @@ class AdminManager {
                                             <th>Método</th>
                                             <th>Ref. / Transf</th>
                                             <th>Monto USD / VES</th>
+                                            <th>Comprobante / Capture</th>
                                             <th>Fecha Pago</th>
                                             <th>Estado</th>
                                             <th class="text-end">Acción</th>
@@ -342,7 +343,7 @@ class AdminManager {
         }
 
         if (payments.length === 0) {
-            tbody.innerHTML = `<tr><td colspan="7" class="text-center text-muted py-4">No se encontraron reportes de pago.</td></tr>`;
+            tbody.innerHTML = `<tr><td colspan="8" class="text-center text-muted py-4">No se encontraron reportes de pago.</td></tr>`;
             return;
         }
 
@@ -351,15 +352,21 @@ class AdminManager {
             const method = methods.find(m => m.id === p.payment_method_id) || { title: "N/A" };
             const badgeClass = p.status === "aprobado" ? "bg-success" : (p.status === "rechazado" ? "bg-danger" : "bg-warning text-dark");
 
+            const proofBtn = p.proof_url ? 
+                `<button class="btn btn-sm btn-outline-info" onclick="Admin.viewPaymentProof('${p.id}')"><i class="bi bi-image me-1"></i> Ver Capture</button>` :
+                `<span class="text-muted small">Sin file</span>`;
+
             return `
                 <tr>
                     <td><strong>${user.name}</strong><br><small class="text-muted">${user.email}</small></td>
                     <td>${method.title}</td>
                     <td><code>${p.reference_number}</code></td>
                     <td>$${p.amount_usd} USD <br><small class="text-muted">Bs. ${p.amount_ves}</small></td>
+                    <td>${proofBtn}</td>
                     <td>${p.payment_date}</td>
                     <td><span class="badge ${badgeClass}">${p.status.toUpperCase()}</span></td>
                     <td class="text-end">
+                        ${p.proof_url ? `<button class="btn btn-sm btn-info me-1 text-white" onclick="Admin.viewPaymentProof('${p.id}')" title="Revisar Capture"><i class="bi bi-eye"></i></button>` : ''}
                         ${p.status === "pendiente" ? `
                             <button class="btn btn-sm btn-success me-1" onclick="Admin.verifyPayment('${p.id}', 'aprobado')"><i class="bi bi-check-lg"></i> Aprobar</button>
                             <button class="btn btn-sm btn-danger" onclick="Admin.verifyPayment('${p.id}', 'rechazado')"><i class="bi bi-x-lg"></i> Rechazar</button>
@@ -396,6 +403,60 @@ class AdminManager {
         }
 
         this.loadAdminPaymentsTable();
+    }
+
+    viewPaymentProof(paymentId) {
+        const payments = DB.getLocalTable("payments");
+        const p = payments.find(pay => pay.id === paymentId);
+        if (!p) return alert("Pago no encontrado.");
+
+        const users = DB.getLocalTable("users");
+        const user = users.find(u => u.id === p.user_id) || { name: "Usuario Desconocido", email: "N/A" };
+
+        const body = document.getElementById("paymentProofModalBody");
+        const footer = document.getElementById("paymentProofModalFooter");
+        if (!body || !footer) return;
+
+        if (p.proof_url) {
+            if (p.proof_url.endsWith(".pdf") || p.proof_url.includes("data:application/pdf")) {
+                body.innerHTML = `
+                    <div class="p-4 bg-light rounded text-center">
+                        <i class="bi bi-file-earmark-pdf text-danger display-1 d-block mb-3"></i>
+                        <h6 class="fw-bold">Comprobante en Documento PDF</h6>
+                        <p class="text-muted small mb-3">Adjuntado por <strong>${user.name}</strong> (${user.email}) - Ref: <code>${p.reference_number}</code></p>
+                        <a href="${p.proof_url}" target="_blank" class="btn btn-danger"><i class="bi bi-download me-1"></i> Abrir / Descargar PDF del Pago</a>
+                    </div>
+                `;
+            } else {
+                body.innerHTML = `
+                    <div class="p-2 bg-light rounded mb-2">
+                        <div class="mb-2 text-start small text-muted">
+                            <strong>Usuario:</strong> ${user.name} (${user.email}) | <strong>Ref:</strong> <code>${p.reference_number}</code> | <strong>Banco Origen:</strong> ${p.bank_origin || 'N/A'}
+                        </div>
+                        <img src="${p.proof_url}" class="img-fluid rounded border shadow-sm" style="max-height: 520px; object-fit: contain;">
+                    </div>
+                `;
+            }
+        } else {
+            body.innerHTML = `<div class="alert alert-warning">El usuario no adjuntó ningún archivo de comprobante para este reporte de pago.</div>`;
+        }
+
+        footer.innerHTML = `
+            <div>
+                <span class="badge ${p.status === 'aprobado' ? 'bg-success' : (p.status === 'rechazado' ? 'bg-danger' : 'bg-warning text-dark')}">${p.status.toUpperCase()}</span>
+                <span class="ms-2 small text-muted">Monto: <strong>$${p.amount_usd} USD</strong> (Bs. ${p.amount_ves})</span>
+            </div>
+            <div>
+                ${p.status === "pendiente" ? `
+                    <button class="btn btn-success me-1" onclick="Admin.verifyPayment('${p.id}', 'aprobado'); bootstrap.Modal.getInstance(document.getElementById('modalViewPaymentProof')).hide();"><i class="bi bi-check-lg me-1"></i> Aprobar Pago</button>
+                    <button class="btn btn-danger me-1" onclick="Admin.verifyPayment('${p.id}', 'rechazado'); bootstrap.Modal.getInstance(document.getElementById('modalViewPaymentProof')).hide();"><i class="bi bi-x-lg me-1"></i> Rechazar Pago</button>
+                ` : ''}
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+            </div>
+        `;
+
+        const modal = new bootstrap.Modal(document.getElementById("modalViewPaymentProof"));
+        modal.show();
     }
 
     async loadAdminUsersTable() {
