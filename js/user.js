@@ -30,7 +30,7 @@ class UserManager {
                               (trialDays > 0 ? `Período de Prueba Gratuito: Te quedan ${trialDays} días de uso libre (15 Días)` : 
                               'Tu período de prueba o membresía ha caducado. Por favor realiza tu pago.')}
                         </h6>
-                        <small>Membresía mensual: <strong>$10.00 USD</strong> (Tasa Oficial BCV: Bs. ${CONFIG.DEFAULT_BCV_RATE})</small>
+                        <small>Membresía mensual: <strong>$${CONFIG.MEMBERSHIP_PRICE_USD.toFixed(2)} USD</strong> (Tasa Oficial BCV: Bs. ${CONFIG.DEFAULT_BCV_RATE.toFixed(2)})</small>
                     </div>
                 </div>
                 <button class="btn btn-sm btn-dark" onclick="User.openReportPaymentModal()"><i class="bi bi-credit-card me-1"></i> Reportar Pago</button>
@@ -656,7 +656,7 @@ class UserManager {
         const methodId = form.method_id.value;
         const method = DB.getLocalTable("payment_methods").find(m => m.id === methodId);
 
-        const amountUsd = 10.00;
+        const amountUsd = CONFIG.MEMBERSHIP_PRICE_USD;
         const amountVes = amountUsd * CONFIG.DEFAULT_BCV_RATE;
 
         const newPayment = {

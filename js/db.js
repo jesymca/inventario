@@ -32,6 +32,11 @@ class DatabaseManager {
         if (settings.length === 0) {
             this.setLocalRecord("settings", { key_name: "bcv_rate", value: String(CONFIG.DEFAULT_BCV_RATE) });
             this.setLocalRecord("settings", { key_name: "membership_price_usd", value: String(CONFIG.MEMBERSHIP_PRICE_USD) });
+        } else {
+            const priceSetting = settings.find(s => s.key_name === "membership_price_usd");
+            const rateSetting = settings.find(s => s.key_name === "bcv_rate");
+            if (priceSetting) CONFIG.MEMBERSHIP_PRICE_USD = parseFloat(priceSetting.value);
+            if (rateSetting) CONFIG.DEFAULT_BCV_RATE = parseFloat(rateSetting.value);
         }
 
         // Cargar métodos de pago por defecto si no existen
