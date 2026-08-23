@@ -191,11 +191,13 @@
                             <label class="form-label fw-semibold">Clave</label>
                             <input type="password" name="password" class="form-control" required>
                         </div>
-                        <div class="mb-3">
-                            <label class="form-label fw-semibold">Confirmación de Clave</label>
-                            <input type="password" name="confirm" class="form-control" required>
+                        <div class="form-check mb-3">
+                            <input class="form-check-input" type="checkbox" id="registerAgreeTerms" required>
+                            <label class="form-check-label small text-muted" for="registerAgreeTerms">
+                                Acepto los <a href="#" onclick="AppUI.openTermsModal(event)" class="text-primary text-decoration-underline fw-semibold">Términos de Servicio, Política de Privacidad y Deslinde de Responsabilidad</a> de <strong>EMPRENDIMIENTO JOSE HERRERA 32</strong> (RIF: J-503692901).
+                            </label>
                         </div>
-                        <button type="submit" class="btn btn-success w-100 py-2">Crear Cuenta y Comenzar</button>
+                        <button type="submit" class="btn btn-success w-100 py-2 fw-bold">Crear Cuenta y Comenzar</button>
                     </form>
                     <p class="text-center small mt-3 mb-0">¿Ya tienes una cuenta? <a href="#" onclick="bootstrap.Modal.getInstance(document.getElementById('modalRegister')).hide(); AppUI.showLoginModal();" class="fw-semibold text-primary">Inicia sesión aquí</a></p>
                 </div>
@@ -1070,6 +1072,52 @@
                         <button class="btn btn-danger py-2 fw-bold" onclick="bootstrap.Modal.getInstance(document.getElementById('modalAccountSuspended')).hide(); User.openReportIncidentModal();"><i class="bi bi-headset me-1"></i> Reportar Incidencia al Administrador</button>
                         <button class="btn btn-outline-secondary" onclick="Auth.logout()"><i class="bi bi-box-arrow-right me-1"></i> Cerrar Sesión</button>
                     </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 23. MODAL TÉRMINOS, POLÍTICAS DE PRIVACIDAD Y LEYES (EMPRENDIMIENTO JOSE HERRERA 32) -->
+    <div class="modal fade" id="modalTermsAndPrivacy" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-lg modal-dialog-scrollable">
+            <div class="modal-content shadow-lg border-0">
+                <div class="modal-header bg-dark text-white">
+                    <h5 class="modal-title fw-bold"><i class="bi bi-shield-check me-2 text-warning"></i> Términos de Servicio, Política de Privacidad y Deslinde de Responsabilidad</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body p-4 text-dark small" style="line-height: 1.6;">
+                    <div class="text-center mb-4 pb-3 border-bottom">
+                        <h5 class="fw-bold mb-1 text-primary">EMPRENDIMIENTO JOSE HERRERA 32</h5>
+                        <div class="badge bg-secondary mb-2">RIF: J-503692901</div>
+                        <p class="text-muted small mb-0">Desarrollo y Gestión Tecnológica: <strong>JOSE HERRERA</strong> (<a href="https://emprendimientojh.blogspot.com/" target="_blank">emprendimientojh.blogspot.com</a>)</p>
+                        <small class="text-muted">Fecha de última actualización: 05 de Marzo del 2024 (Conforme a la Legislación de la República Bolivariana de Venezuela)</small>
+                    </div>
+
+                    <h6 class="fw-bold text-primary"><i class="bi bi-bank me-1"></i> 1. MARCO LEGAL VENEZOLANO Y ACEPTACIÓN</h6>
+                    <p>Al acceder, registrarse o utilizar esta plataforma tecnológica, el usuario acepta de forma expresa e irrevocable los presentes Términos, Políticas de Privacidad y Condiciones Generales de Uso, formulados de conformidad con la <strong>Constitución de la República Bolivariana de Venezuela (CRBV)</strong> (Arts. 60 y 110), la <strong>Ley de Infogobierno</strong>, la <strong>Ley Contra los Delitos Informáticos</strong> y la <strong>Ley para la Defensa de las Personas en el Acceso a los Bienes y Servicios (Sundde)</strong>.</p>
+
+                    <h6 class="fw-bold text-danger"><i class="bi bi-exclamation-triangle-fill me-1"></i> 2. DESLINDE DE RESPONSABILIDAD DE BIENES, PRODUCTOS Y SERVICIOS OFERTADOS</h6>
+                    <div class="alert alert-warning border-warning p-3 mb-3">
+                        <strong class="d-block text-dark mb-1">Responsabilidad Exclusiva de cada Comercio / Empresa Registrada:</strong>
+                        Se establece de forma expresa que <strong>EMPRENDIMIENTO JOSE HERRERA 32 (RIF: J-503692901)</strong> opera exclusivamente como proveedor de la plataforma de software e infraestructura tecnológica. Cada tienda, comercio, empresa o usuario vendedor registrado es el <strong>ÚNICO Y EXCLUSIVO RESPONSABLE</strong> por los productos, imágenes, descripciones, precios, existencias (stock), inventarios, despachos, garantías, facturación y legalidad de las mercancías o servicios ofertados en su respectiva cuenta.
+                    </div>
+
+                    <h6 class="fw-bold text-primary"><i class="bi bi-lock-fill me-1"></i> 3. POLÍTICA DE PRIVACIDAD Y PROTECCIÓN DE DATOS</h6>
+                    <p><strong>EMPRENDIMIENTO JOSE HERRERA 32</strong> se compromete a proteger la privacidad y confidencialidad de la información personal de sus usuarios:</p>
+                    <ul>
+                        <li><strong>Información Recopilada:</strong> Datos de contacto (Nombre, correo electrónico, número de teléfono, dirección), datos de transacciones de inventario, información técnica de dispositivo (dirección IP, cookies de sesión local) y RIF.</li>
+                        <li><strong>Uso de la Información:</strong> Prestación del servicio de gestión de inventarios, contacto técnico, habilitación de enlaces directos de comunicación (WhatsApp) e indicadores estadísticos del negocio.</li>
+                        <li><strong>No Divulgación ni Venta:</strong> No se venden, alquilan ni comercializan datos personales a terceros bajo ninguna circunstancia. La información solo será revelada cuando sea estrictamente requerida por orden judicial emitida por tribunal competente conforme a las leyes venezolanas.</li>
+                    </ul>
+
+                    <h6 class="fw-bold text-primary"><i class="bi bi-shield-lock me-1"></i> 4. DELITOS INFORMÁTICOS Y PROHIBICIONES</h6>
+                    <p>Conforme a la <strong>Ley Contra los Delitos Informáticos</strong>, queda terminantemente prohibido el acceso no autorizado, suplantación de identidad, manipulación maliciosa de datos de terceros o interrupción del servicio. Cualquier infracción ocasionará la suspensión inmediata e indefinida de la cuenta y será notificada a los órganos de seguridad del Estado.</p>
+
+                    <h6 class="fw-bold text-primary"><i class="bi bi-headset me-1"></i> 5. CONTACTO Y SOPORTE</h6>
+                    <p class="mb-0">Para dudas, notificaciones o solicitudes sobre los términos de privacidad, puede contactar al Administrador a través de los canales oficiales publicados en la web o mediante nuestro portal institucional.</p>
+                </div>
+                <div class="modal-footer bg-light py-2">
+                    <button type="button" class="btn btn-primary fw-semibold px-4" data-bs-dismiss="modal">Entendido y Aceptado</button>
                 </div>
             </div>
         </div>

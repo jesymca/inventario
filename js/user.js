@@ -25,7 +25,7 @@ class UserManager {
 
         container.innerHTML = `
             <!-- Banner de Estado de Membresía / Prueba -->
-            <div class="alert ${membershipDays > 0 ? 'alert-success' : (trialDays > 0 ? 'alert-info' : 'alert-warning')} shadow-sm d-flex justify-content-between align-items-center mb-4">
+            <div class="alert ${membershipDays > 0 ? 'alert-success' : (trialDays > 0 ? 'alert-info' : 'alert-warning')} shadow-sm d-flex justify-content-between align-items-center mb-3">
                 <div class="d-flex align-items-center">
                     <i class="bi bi-clock-history fs-3 me-3"></i>
                     <div>
@@ -39,6 +39,20 @@ class UserManager {
                 </div>
                 <button class="btn btn-sm btn-dark" onclick="User.openReportPaymentModal()"><i class="bi bi-credit-card me-1"></i> Reportar Pago</button>
             </div>
+
+            ${Number(currentBiz.is_demo_active || 0) === 1 ? `
+                <!-- Banner de Modo Datos de Prueba Activo -->
+                <div class="alert alert-warning border-warning shadow-sm d-flex justify-content-between align-items-center mb-4">
+                    <div class="d-flex align-items-center">
+                        <i class="bi bi-flask fs-2 text-warning me-3"></i>
+                        <div>
+                            <h6 class="alert-heading mb-0 fw-bold"><i class="bi bi-info-circle me-1"></i> MODO DATOS DE PRUEBA / EJEMPLO ACTIVO</h6>
+                            <small class="text-dark">Estás visualizando datos demostrativos de ejemplo para el rubro <strong>${(currentBiz.category_preset || 'General').toUpperCase()}</strong>. Puedes apagar este modo o cambiar de rubro en la barra superior o en <strong>Perfil Negocio</strong>.</small>
+                        </div>
+                    </div>
+                    <button class="btn btn-sm btn-outline-dark fw-semibold ms-2" onclick="AppUI.toggleDemoData(false)"><i class="bi bi-x-circle me-1"></i> Desactivar Datos Prueba</button>
+                </div>
+            ` : ''}
 
             <!-- Navegación por Pestañas del Comercio -->
             <ul class="nav nav-pills mb-4 gap-2 flex-wrap" id="userPillsTab" role="tablist">
@@ -435,6 +449,34 @@ class UserManager {
                                             <div class="col-md-6">
                                                 <label class="form-label fw-semibold">Color de Branding (Tema)</label>
                                                 <input type="color" class="form-control form-control-color w-100" name="branding_color" value="${currentBiz.branding_color || '#0d6efd'}">
+                                            </div>
+                                        </div>
+
+                                        <!-- Rubro / Categoría del Comercio y Switch Demo -->
+                                        <div class="card bg-light border-warning mb-4">
+                                            <div class="card-body">
+                                                <h6 class="fw-bold text-dark mb-2"><i class="bi bi-shop me-1 text-warning"></i> Rubro del Comercio y Modo Demo / Datos de Prueba</h6>
+                                                <div class="row g-3">
+                                                    <div class="col-md-6">
+                                                        <label class="form-label small fw-semibold">Rubro / Categoría del Negocio</label>
+                                                        <select class="form-select form-select-sm" name="category_preset" onchange="AppUI.changePresetProfile(this.value)">
+                                                            <option value="panaderia" ${currentBiz.category_preset === 'panaderia' ? 'selected' : ''}>Panadería & Pastelería</option>
+                                                            <option value="zapateria" ${currentBiz.category_preset === 'zapateria' ? 'selected' : ''}>Zapatería</option>
+                                                            <option value="libreria" ${currentBiz.category_preset === 'libreria' ? 'selected' : ''}>Librería y Papelería</option>
+                                                            <option value="farmacia" ${currentBiz.category_preset === 'farmacia' ? 'selected' : ''}>Farmacia & Botica</option>
+                                                            <option value="ropa" ${currentBiz.category_preset === 'ropa' ? 'selected' : ''}>Tienda de Ropa & Boutique</option>
+                                                            <option value="bolsos" ${currentBiz.category_preset === 'bolsos' ? 'selected' : ''}>Tienda de Bolsos & Maletas</option>
+                                                            <option value="viveres" ${currentBiz.category_preset === 'viveres' || !currentBiz.category_preset ? 'selected' : ''}>Abasto & Víveres</option>
+                                                            <option value="carniceria" ${currentBiz.category_preset === 'carniceria' ? 'selected' : ''}>Carnicería & Frigorífico</option>
+                                                        </select>
+                                                    </div>
+                                                    <div class="col-md-6 d-flex align-items-end">
+                                                        <div class="form-check form-switch bg-white p-2 rounded border w-100 mb-0">
+                                                            <input class="form-check-input ms-1 me-2" type="checkbox" id="switchDemoProfile" ${Number(currentBiz.is_demo_active || 0) === 1 ? 'checked' : ''} onchange="AppUI.toggleDemoData(this.checked)">
+                                                            <label class="form-check-label small fw-bold text-dark" for="switchDemoProfile"><i class="bi bi-flask text-warning me-1"></i> Modo Datos de Prueba</label>
+                                                        </div>
+                                                    </div>
+                                                </div>
                                             </div>
                                         </div>
 

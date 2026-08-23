@@ -247,25 +247,25 @@ class AppUIManager {
                             </ul>
 
                             <!-- Controles de Prueba / Demo Slider -->
-                            ${!Auth.isSuperAdmin() ? `
-                                <div class="d-flex align-items-center me-3 border rounded p-1 bg-body-secondary">
-                                    <span class="small me-2 fw-semibold ms-1"><i class="bi bi-magic me-1"></i> Datos Prueba:</span>
+                            ${!Auth.isSuperAdmin() && biz ? `
+                                <div class="d-flex align-items-center me-3 border rounded p-1 bg-body-secondary" title="Habilitar/Deshabilitar Datos de Prueba o Ejemplo">
+                                    <span class="small me-2 fw-semibold ms-1"><i class="bi bi-flask me-1 text-warning"></i> Datos Prueba:</span>
                                     <div class="form-check form-switch mb-0">
-                                        <input class="form-check-input" type="checkbox" role="switch" id="demoDataSwitch" onchange="AppUI.toggleDemoData(this.checked)">
+                                        <input class="form-check-input" type="checkbox" role="switch" id="demoDataSwitch" ${Number(biz.is_demo_active || 0) === 1 ? 'checked' : ''} onchange="AppUI.toggleDemoData(this.checked)">
                                     </div>
                                 </div>
 
                                 <div class="me-3">
                                     <select class="form-select form-select-sm" onchange="AppUI.changePresetProfile(this.value)">
                                         <option value="">-- Perfil Comercio --</option>
-                                        <option value="panaderia">Panadería</option>
-                                        <option value="zapateria">Zapatería</option>
-                                        <option value="libreria">Librería</option>
-                                        <option value="farmacia">Farmacia</option>
-                                        <option value="ropa">Tienda Ropa</option>
-                                        <option value="bolsos">Tienda Bolsos</option>
-                                        <option value="viveres">Víveres</option>
-                                        <option value="carniceria">Carnicería</option>
+                                        <option value="panaderia" ${biz.category_preset === 'panaderia' ? 'selected' : ''}>Panadería & Pastelería</option>
+                                        <option value="zapateria" ${biz.category_preset === 'zapateria' ? 'selected' : ''}>Zapatería</option>
+                                        <option value="libreria" ${biz.category_preset === 'libreria' ? 'selected' : ''}>Librería y Papelería</option>
+                                        <option value="farmacia" ${biz.category_preset === 'farmacia' ? 'selected' : ''}>Farmacia & Botica</option>
+                                        <option value="ropa" ${biz.category_preset === 'ropa' ? 'selected' : ''}>Tienda de Ropa & Boutique</option>
+                                        <option value="bolsos" ${biz.category_preset === 'bolsos' ? 'selected' : ''}>Tienda de Bolsos & Maletas</option>
+                                        <option value="viveres" ${biz.category_preset === 'viveres' ? 'selected' : ''}>Abasto & Víveres</option>
+                                        <option value="carniceria" ${biz.category_preset === 'carniceria' ? 'selected' : ''}>Carnicería & Frigorífico</option>
                                     </select>
                                 </div>
                             ` : ''}
@@ -505,6 +505,59 @@ class AppUIManager {
         });
 
         modal.show();
+    }
+
+    openTermsModal(event) {
+        if (event) event.preventDefault();
+        const modal = bootstrap.Modal.getOrCreateInstance(document.getElementById("modalTermsAndPrivacy"));
+        modal.show();
+    }
+
+    async toggleDemoData(isEnabled) {
+        if (!Auth.currentBusiness) return;
+        const bizId = Auth.currentBusiness.id;
+        const presetKey = Auth.currentBusiness.category_preset || "viveres";
+
+        if (isEnabled) {
+            this.showAlert("Cargando Datos de Prueba", `Generando productos, clientes y proveedores de ejemplo para el rubro <strong>${presetKey}</strong>...`, "info");
+            await Presets.clearDemoData(bizId);
+            await Presets.loadDemoData(bizId, presetKey);
+            Auth.currentBusiness.is_demo_active = 1;
+        } else {
+            this.showAlert("Modo Limpio", "Se han ocultado y removido los datos de prueba. Ahora verás solo tus registros reales.", "info");
+            await Presets.clearDemoData(bizId);
+            Auth.currentBusiness.is_demo_active = 0;
+        }
+
+        const businesses = DB.getLocalTable("businesses");
+        const idx = businesses.findIndex(b => b.id === bizId);
+        if (idx >= 0) {
+            businesses[idx].is_demo_active = Auth.currentBusiness.is_demo_active;
+            DB.setLocalTable("businesses", businesses);
+            try {
+                await DB.query("UPDATE businesses SET is_demo_active = ? WHERE id = ?", [Auth.currentBusiness.is_demo_active, bizId]);
+            } catch (e) {}
+        }
+
+        this.renderApp();
+    }
+
+    async changePresetProfile(presetKey) {
+        if (!presetKey || !Auth.currentBusiness) return;
+        const bizId = Auth.currentBusiness.id;
+        const isDemoActive = Number(Auth.currentBusiness.is_demo_active || 0) === 1;
+
+        await Presets.applyPresetProfile(presetKey, bizId);
+
+        if (isDemoActive) {
+            this.showAlert("Cambiando Rubro de Prueba", `Actualizando inventario de prueba para el rubro <strong>${presetKey.toUpperCase()}</strong>...`, "info");
+            await Presets.clearDemoData(bizId);
+            await Presets.loadDemoData(bizId, presetKey);
+        } else {
+            this.showAlert("Perfil Actualizado", `El comercio ahora está configurado para el rubro <strong>${presetKey.toUpperCase()}</strong>.`, "success");
+        }
+
+        this.renderApp();
     }
 }
 

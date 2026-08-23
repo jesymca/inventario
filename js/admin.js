@@ -2,12 +2,82 @@
  * SISTEMA DE CONTROL DE INVENTARIOS MULTI-USUARIO (Emprendimiento JOSE HERRERA)
  * Módulo de Administración del Sistema (Super Admin)
  */
-
 class AdminManager {
     constructor() {
         this.paymentsSearchQuery = "";
         this.businessesSearchQuery = "";
         this.usersSearchQuery = "";
+        this.productsSearchQuery = "";
+        this.cache = { users: [], businesses: [], products: [], payments: [] };
+    }
+
+    async fetchAllAdminData() {
+        try {
+            const [bizRes, usrRes, payRes, prodRes] = await Promise.all([
+                DB.query("SELECT * FROM businesses").catch(() => null),
+                DB.query("SELECT * FROM users").catch(() => null),
+                DB.query("SELECT * FROM payments").catch(() => null),
+                DB.query("SELECT * FROM products").catch(() => null)
+            ]);
+
+            // 1. Comercios con desduplicación estricta por id o por email/owner_user_id
+            let bizList = (bizRes && bizRes.rows && bizRes.rows.length > 0) ? bizRes.rows : DB.getLocalTable("businesses");
+            const localBiz = DB.getLocalTable("businesses");
+            localBiz.forEach(lb => {
+                if (!bizList.some(b => b.id === lb.id || (b.owner_user_id && b.owner_user_id === lb.owner_user_id))) {
+                    bizList.push(lb);
+                }
+            });
+            const bizMap = new Map();
+            bizList.forEach(b => {
+                const key = b.id || (b.owner_user_id ? "owner_" + b.owner_user_id : null) || (b.email ? "email_" + b.email.toLowerCase() : null);
+                if (key && !bizMap.has(key)) bizMap.set(key, b);
+            });
+            this.cache.businesses = Array.from(bizMap.values());
+
+            // 2. Usuarios con desduplicación estricta por id o por email
+            let usrList = (usrRes && usrRes.rows && usrRes.rows.length > 0) ? usrRes.rows : DB.getLocalTable("users");
+            const localUsers = DB.getLocalTable("users");
+            usrList = usrList.map(tu => {
+                const lu = localUsers.find(l => l.id === tu.id || (l.email && l.email.toLowerCase() === tu.email.toLowerCase()));
+                return lu ? {
+                    ...lu,
+                    ...tu,
+                    membership_expires_at: tu.membership_expires_at || lu.membership_expires_at,
+                    membership_type: tu.membership_type || lu.membership_type,
+                    is_active: tu.is_active !== undefined && tu.is_active !== null ? tu.is_active : lu.is_active
+                } : tu;
+            });
+            localUsers.forEach(lu => {
+                if (!usrList.some(u => u.id === lu.id || (u.email && u.email.toLowerCase() === lu.email.toLowerCase()))) {
+                    usrList.push(lu);
+                }
+            });
+            const usrMap = new Map();
+            usrList.forEach(u => {
+                const key = u.id || (u.email ? u.email.toLowerCase() : null);
+                if (key && !usrMap.has(key)) usrMap.set(key, u);
+            });
+            this.cache.users = Array.from(usrMap.values());
+
+            // 3. Pagos
+            let payList = (payRes && payRes.rows && payRes.rows.length > 0) ? payRes.rows : DB.getLocalTable("payments");
+            const localPay = DB.getLocalTable("payments");
+            localPay.forEach(lp => {
+                if (!payList.some(p => p.id === lp.id)) payList.push(lp);
+            });
+            this.cache.payments = payList;
+
+            // 4. Productos
+            let prodList = (prodRes && prodRes.rows && prodRes.rows.length > 0) ? prodRes.rows : DB.getLocalTable("products");
+            const localProd = DB.getLocalTable("products");
+            localProd.forEach(lp => {
+                if (!prodList.some(p => p.id === lp.id)) prodList.push(lp);
+            });
+            this.cache.products = prodList;
+        } catch (e) {
+            console.warn("Error loading admin data batch:", e);
+        }
     }
 
     /**
@@ -17,8 +87,9 @@ class AdminManager {
         const container = document.getElementById(containerId);
         if (!container) return;
 
-        // Cargar Estadísticas Globales
-        const stats = await this.getGlobalStats();
+        // Cargar Datos en Lote Paralelo Rápido
+        await this.fetchAllAdminData();
+        const stats = this.getGlobalStats();
 
         container.innerHTML = `
             <div class="row g-3 mb-4">
@@ -80,6 +151,9 @@ class AdminManager {
                     <button class="nav-link" id="tab-clients-tab" data-bs-toggle="tab" data-bs-target="#tab-clients" type="button"><i class="bi bi-shop me-1"></i> Comercios y Licencias (${stats.totalBusinesses})</button>
                 </li>
                 <li class="nav-item">
+                    <button class="nav-link" id="tab-products-tab" data-bs-toggle="tab" data-bs-target="#tab-products" type="button" onclick="Admin.loadAdminProductsTable()"><i class="bi bi-box-seam me-1"></i> Catálogo de Productos (${stats.totalProducts})</button>
+                </li>
+                <li class="nav-item">
                     <button class="nav-link" id="tab-methods-tab" data-bs-toggle="tab" data-bs-target="#tab-methods" type="button"><i class="bi bi-bank me-1"></i> Formas de Pago</button>
                 </li>
                 <li class="nav-item">
@@ -123,8 +197,8 @@ class AdminManager {
                     </div>
 
                     <div class="card shadow-sm border-0">
-                        <div class="card-header bg-body text-body d-flex justify-content-between align-items-center">
-                            <h5 class="mb-0"><i class="bi bi-clock-history me-2"></i> Reportes de Pago Pendientes de Verificación</h5>
+                        <div class="card-header bg-body text-body d-flex justify-content-between align-items-center py-3">
+                            <h5 class="mb-0 fw-bold"><i class="bi bi-clock-history me-2"></i> Reportes de Pago Pendientes de Verificación</h5>
                             <div class="d-flex align-items-center">
                                 <input type="text" id="adminPaymentsSearchInput" class="form-control form-control-sm me-2" style="max-width: 320px;" placeholder="🔍 Buscar pago por usuario, ref, banco..." oninput="Admin.filterPayments(this.value)">
                                 <button class="btn btn-sm btn-outline-primary" onclick="Admin.renderAdminDashboard('${containerId}')"><i class="bi bi-arrow-clockwise me-1"></i> Actualizar</button>
@@ -138,9 +212,9 @@ class AdminManager {
                                             <th>Usuario / Comercio</th>
                                             <th>Método</th>
                                             <th>Ref. / Transf</th>
-                                            <th>Monto USD / VES</th>
-                                            <th>Comprobante / Capture</th>
-                                            <th>Fecha Pago</th>
+                                            <th>Monto</th>
+                                            <th>Comprobante</th>
+                                            <th>Fecha</th>
                                             <th>Estado</th>
                                             <th class="text-end">Acción</th>
                                         </tr>
@@ -154,12 +228,12 @@ class AdminManager {
                     </div>
                 </div>
 
-                <!-- 2. REGISTRO DE USUARIOS EN LA PLATAFORMA (ESTADÍSTICAS & CONTROL) -->
+                <!-- 2. REGISTRO DE USUARIOS -->
                 <div class="tab-pane fade" id="tab-users">
                     <div class="card shadow-sm border-0">
-                        <div class="card-header bg-body text-body d-flex justify-content-between align-items-center">
-                            <h5 class="mb-0"><i class="bi bi-person-lines-fill me-2 text-success"></i> Usuarios Registrados en la Plataforma</h5>
-                            <input type="text" id="adminUsersSearchInput" class="form-control form-control-sm" style="max-width: 320px;" placeholder="🔍 Buscar por nombre, correo, rol o fecha..." oninput="Admin.filterUsers(this.value)">
+                        <div class="card-header bg-body text-body d-flex justify-content-between align-items-center py-3">
+                            <h5 class="mb-0 fw-bold"><i class="bi bi-person-lines-fill me-2 text-primary"></i> Usuarios Registrados en la Plataforma</h5>
+                            <input type="text" id="adminUsersSearchInput" class="form-control form-control-sm" style="max-width: 320px;" placeholder="🔍 Buscar por nombre, correo, rol o Google..." oninput="Admin.filterUsers(this.value)">
                         </div>
                         <div class="card-body p-0">
                             <div class="table-responsive">
@@ -167,12 +241,12 @@ class AdminManager {
                                     <thead class="table-light">
                                         <tr>
                                             <th>#</th>
-                                            <th>Nombre Completo</th>
-                                            <th>Correo Electrónico</th>
-                                            <th>Rol de Cuenta</th>
-                                            <th>Fecha de Registro</th>
-                                            <th>Membresía / Estado Prueba</th>
-                                            <th class="text-end">Estado</th>
+                                            <th>Persona / Dueño</th>
+                                            <th>Correo Electrónico & Tlf</th>
+                                            <th>Rol</th>
+                                            <th>Registro</th>
+                                            <th>Membresía / Estado</th>
+                                            <th class="text-end">Gestión de Acceso</th>
                                         </tr>
                                     </thead>
                                     <tbody id="adminUsersTableBody">
@@ -187,23 +261,82 @@ class AdminManager {
                 <!-- 3. COMERCIOS Y LICENCIAS -->
                 <div class="tab-pane fade" id="tab-clients">
                     <div class="card shadow-sm border-0">
-                        <div class="card-header bg-body text-body d-flex justify-content-between align-items-center">
-                            <h5 class="mb-0"><i class="bi bi-buildings me-2"></i> Directorio de Comercios Registrados</h5>
-                            <input type="text" id="adminBusinessesSearchInput" class="form-control form-control-sm" style="max-width: 320px;" placeholder="🔍 Buscar comercio por nombre o correo..." oninput="Admin.filterBusinesses(this.value)">
+                        <div class="card-header bg-body text-body d-flex justify-content-between align-items-center py-3">
+                            <h5 class="mb-0 fw-bold"><i class="bi bi-shop me-2 text-success"></i> Directorio de Comercios Registrados</h5>
+                            <input type="text" id="adminBusinessesSearchInput" class="form-control form-control-sm" style="max-width: 320px;" placeholder="🔍 Buscar por nombre de comercio o dueño..." oninput="Admin.filterBusinesses(this.value)">
                         </div>
                         <div class="card-body p-0">
                             <div class="table-responsive">
                                 <table class="table table-striped align-middle mb-0">
                                     <thead class="table-light">
                                         <tr>
-                                            <th>Nombre Comercio</th>
-                                            <th>Propietario / Correo</th>
-                                            <th>Teléfono</th>
-                                            <th>Estado Membresía</th>
-                                            <th class="text-end">Acciones</th>
+                                            <th>Nombre del Comercio</th>
+                                            <th>Propietario / Email</th>
+                                            <th>Licencia Propietario</th>
+                                            <th>Teléfono / WhatsApp</th>
+                                            <th class="text-end">Detalles</th>
                                         </tr>
                                     </thead>
                                     <tbody id="adminBusinessesTableBody">
+                                        <!-- Comercios dinámicos -->
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 4. CATÁLOGO GLOBAL DE PRODUCTOS MONTADOS -->
+                <div class="tab-pane fade" id="tab-products">
+                    <div class="card shadow-sm border-0">
+                        <div class="card-header bg-body text-body d-flex justify-content-between align-items-center py-3">
+                            <h5 class="mb-0 fw-bold"><i class="bi bi-box-seam me-2 text-info"></i> Catálogo Global de Productos Montados en la Plataforma</h5>
+                            <input type="text" id="adminProductsSearchInput" class="form-control form-control-sm" style="max-width: 340px;" placeholder="🔍 Buscar por producto, tienda, categoría..." oninput="Admin.filterProducts(this.value)">
+                        </div>
+                        <div class="card-body p-0">
+                            <div class="table-responsive">
+                                <table class="table table-striped align-middle mb-0">
+                                    <thead class="table-light">
+                                        <tr>
+                                            <th>#</th>
+                                            <th>Producto</th>
+                                            <th>Categoría</th>
+                                            <th>Stock</th>
+                                            <th>Precio ($ / Bs.)</th>
+                                            <th>Comercio / Tienda Publicadora</th>
+                                            <th class="text-end">Contacto WhatsApp</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="adminProductsTableBody">
+                                        <!-- Productos dinámicos -->
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 5. FORMAS DE PAGO ACEPTADAS -->
+                <div class="tab-pane fade" id="tab-methods">
+                    <div class="card shadow-sm border-0">
+                        <div class="card-header bg-body text-body d-flex justify-content-between align-items-center py-3">
+                            <h5 class="mb-0 fw-bold"><i class="bi bi-bank me-2 text-primary"></i> Gestión de Formas de Pago Aceptadas (VES / USD)</h5>
+                            <button class="btn btn-sm btn-primary" onclick="Admin.openNewPaymentMethodModal()"><i class="bi bi-plus-lg me-1"></i> Nueva Forma de Pago</button>
+                        </div>
+                        <div class="card-body p-0">
+                            <div class="table-responsive">
+                                <table class="table table-hover align-middle mb-0">
+                                    <thead class="table-light">
+                                        <tr>
+                                            <th>Icono / Tipo</th>
+                                            <th>Título de Pago</th>
+                                            <th>Moneda</th>
+                                            <th>Detalles de Cuenta / Pago</th>
+                                            <th>Estado</th>
+                                            <th class="text-end">Acciones</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="adminPaymentMethodsTableBody">
                                         <!-- Se llena dinámicamente -->
                                     </tbody>
                                 </table>
@@ -212,43 +345,26 @@ class AdminManager {
                     </div>
                 </div>
 
-                <!-- 4. FORMAS DE PAGO -->
-                <div class="tab-pane fade" id="tab-methods">
-                    <div class="card shadow-sm border-0 mb-4">
-                        <div class="card-header bg-body text-body d-flex justify-content-between align-items-center">
-                            <h5 class="mb-0"><i class="bi bi-wallet2 me-2"></i> Gestión de Formas de Pago Aceptadas (VES / USD)</h5>
-                            <button class="btn btn-sm btn-primary" onclick="Admin.openNewPaymentMethodModal()"><i class="bi bi-plus-circle me-1"></i> Nueva Forma de Pago</button>
-                        </div>
-                        <div class="card-body">
-                            <div class="row g-3" id="adminPaymentMethodsContainer">
-                                <!-- Cards de métodos de pago -->
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- 5. CONECTIVIDAD API -->
+                <!-- 6. CONECTIVIDAD Y APIS -->
                 <div class="tab-pane fade" id="tab-connectivity">
-                    <div class="card shadow-sm border-0">
-                        <div class="card-header bg-body text-body">
-                            <h5 class="mb-0"><i class="bi bi-speedometer2 me-2"></i> Diagnóstico de APIs y Conectividad</h5>
+                    <div class="card shadow-sm border-0 mb-4">
+                        <div class="card-header bg-body text-body py-3">
+                            <h5 class="mb-0 fw-bold"><i class="bi bi-wifi me-2 text-success"></i> Monitor de Conectividad a Base de Datos y APIs</h5>
                         </div>
                         <div class="card-body">
                             <div class="row g-3">
                                 <div class="col-md-6">
-                                    <div class="border rounded p-3 bg-body-tertiary">
-                                        <h6 class="fw-bold"><i class="bi bi-database me-2"></i> Turso libSQL Database API</h6>
-                                        <p class="small text-muted mb-2">Endpoint: <code>${CONFIG.TURSO.httpUrl}</code></p>
-                                        <div id="tursoStatusBadge" class="mb-3"><span class="badge bg-secondary">Sin verificar</span></div>
-                                        <button class="btn btn-sm btn-outline-primary" onclick="Admin.testTursoConnection()"><i class="bi bi-play-circle me-1"></i> Probar Conexión Turso</button>
+                                    <div class="card border p-3">
+                                        <h6 class="fw-bold"><i class="bi bi-database me-2"></i> Estado de la Base de Datos Turso DB</h6>
+                                        <p class="small text-muted mb-2">Motor primario SQLite distribuido en la nube.</p>
+                                        <div id="statusTursoDB" class="badge bg-secondary p-2">Verificando conexión...</div>
                                     </div>
                                 </div>
                                 <div class="col-md-6">
-                                    <div class="border rounded p-3 bg-body-tertiary">
-                                        <h6 class="fw-bold"><i class="bi bi-cloud-arrow-up me-2"></i> Cloudflare R2 Storage API</h6>
-                                        <p class="small text-muted mb-2">Endpoint: <code>${CONFIG.CLOUDFLARE_R2.endpoint}</code></p>
-                                        <div id="r2StatusBadge" class="mb-3"><span class="badge bg-secondary">Sin verificar</span></div>
-                                        <button class="btn btn-sm btn-outline-primary" onclick="Admin.testR2Connection()"><i class="bi bi-play-circle me-1"></i> Probar Conexión R2</button>
+                                    <div class="card border p-3">
+                                        <h6 class="fw-bold"><i class="bi bi-currency-dollar me-2"></i> API Tasa de Cambio (ve.dolarapi.com)</h6>
+                                        <p class="small text-muted mb-2">Monitoreo en vivo de la tasa oficial BCV.</p>
+                                        <div id="statusDolarAPI" class="badge bg-secondary p-2">Verificando API...</div>
                                     </div>
                                 </div>
                             </div>
@@ -256,11 +372,11 @@ class AdminManager {
                     </div>
                 </div>
 
-                <!-- 6. INCIDENCIAS -->
+                <!-- 7. INCIDENCIAS REPORTADAS -->
                 <div class="tab-pane fade" id="tab-incidents">
                     <div class="card shadow-sm border-0">
-                        <div class="card-header bg-body text-body">
-                            <h5 class="mb-0"><i class="bi bi-exclamation-triangle me-2"></i> Reporte de Incidencias de Usuarios</h5>
+                        <div class="card-header bg-body text-body py-3">
+                            <h5 class="mb-0 fw-bold"><i class="bi bi-exclamation-diamond me-2 text-warning"></i> Incidencias y Soporte de Usuarios</h5>
                         </div>
                         <div class="card-body p-0">
                             <div class="table-responsive">
@@ -286,62 +402,20 @@ class AdminManager {
             </div>
         `;
 
-        await this.loadAdminPaymentsTable();
-        await this.loadAdminUsersTable();
-        await this.loadAdminBusinessesTable();
-        await this.loadAdminPaymentMethods();
-        await this.loadAdminIncidentsTable();
+        this.loadAdminPaymentsTable();
+        this.loadAdminUsersTable();
+        this.loadAdminBusinessesTable();
+        this.loadAdminProductsTable();
+        this.loadAdminPaymentMethods();
+        this.loadAdminIncidentsTable();
     }
 
-    async getGlobalStats() {
-        let businesses = [];
-        let users = [];
-        let payments = [];
-        let products = [];
-
-        try {
-            const bizRes = await DB.query("SELECT id FROM businesses");
-            businesses = (bizRes && bizRes.rows) ? bizRes.rows : DB.getLocalTable("businesses");
-        } catch (e) {
-            businesses = DB.getLocalTable("businesses");
-        }
-
-        try {
-            const usrRes = await DB.query("SELECT id FROM users");
-            users = (usrRes && usrRes.rows) ? usrRes.rows : DB.getLocalTable("users");
-        } catch (e) {
-            users = DB.getLocalTable("users");
-        }
-
-        try {
-            const payRes = await DB.query("SELECT * FROM payments");
-            payments = (payRes && payRes.rows) ? payRes.rows : DB.getLocalTable("payments");
-        } catch (e) {
-            payments = DB.getLocalTable("payments");
-        }
-
-        try {
-            const prodRes = await DB.query("SELECT id FROM products");
-            products = (prodRes && prodRes.rows) ? prodRes.rows : DB.getLocalTable("products");
-        } catch (e) {
-            products = DB.getLocalTable("products");
-        }
-
-        const localBiz = DB.getLocalTable("businesses");
-        localBiz.forEach(lb => {
-            if (!businesses.some(b => b.id === lb.id)) businesses.push(lb);
-        });
-
-        const localUsers = DB.getLocalTable("users");
-        localUsers.forEach(lu => {
-            if (!users.some(u => u.id === lu.id)) users.push(lu);
-        });
-
+    getGlobalStats() {
         return {
-            totalBusinesses: businesses.length,
-            totalUsers: users.length,
-            pendingPayments: payments.filter(p => p.status === "pendiente").length,
-            totalProducts: products.length
+            totalBusinesses: this.cache.businesses ? this.cache.businesses.length : 0,
+            totalUsers: this.cache.users ? this.cache.users.length : 0,
+            pendingPayments: this.cache.payments ? this.cache.payments.filter(p => p.status === "pendiente").length : 0,
+            totalProducts: this.cache.products ? this.cache.products.length : 0
         };
     }
 
@@ -498,48 +572,16 @@ class AdminManager {
         modal.show();
     }
 
-    async loadAdminUsersTable() {
+    loadAdminUsersTable() {
         const tbody = document.getElementById("adminUsersTableBody");
         if (!tbody) return;
 
-        let users = [];
-        const localUsers = DB.getLocalTable("users");
-
-        try {
-            const res = await DB.query("SELECT * FROM users");
-            if (res && res.rows && res.rows.length > 0) {
-                users = res.rows;
-                // Fusionar inteligentemente manteniendo datos de membresía si en Turso vino nulo
-                users = users.map(tu => {
-                    const lu = localUsers.find(l => l.id === tu.id || (l.email && l.email.toLowerCase() === tu.email.toLowerCase()));
-                    if (lu) {
-                        return {
-                            ...lu,
-                            ...tu,
-                            membership_expires_at: tu.membership_expires_at || lu.membership_expires_at,
-                            membership_type: tu.membership_type || lu.membership_type,
-                            is_active: tu.is_active !== undefined && tu.is_active !== null ? tu.is_active : lu.is_active
-                        };
-                    }
-                    return tu;
-                });
-                users.forEach(u => DB.setLocalRecord("users", u));
-            } else {
-                users = localUsers;
-            }
-        } catch (e) {
-            users = localUsers;
-        }
-
-        // Combinar con LocalStorage para asegurar que cualquier registro local esté visible
-        localUsers.forEach(lu => {
-            if (!users.some(u => u.id === lu.id || u.email.toLowerCase() === lu.email.toLowerCase())) {
-                users.push(lu);
-            }
-        });
+        let users = this.cache.users || DB.getLocalTable("users");
+        const businesses = this.cache.businesses || DB.getLocalTable("businesses");
+        const roles = DB.getLocalTable("user_business_roles");
 
         // Ordenar por fecha más reciente
-        users.sort((a, b) => new Date(b.created_at || b.trial_starts_at || 0) - new Date(a.created_at || a.trial_starts_at || 0));
+        users = [...users].sort((a, b) => new Date(b.created_at || b.trial_starts_at || 0) - new Date(a.created_at || a.trial_starts_at || 0));
 
         if (this.usersSearchQuery) {
             const q = this.usersSearchQuery.toLowerCase();
@@ -556,9 +598,6 @@ class AdminManager {
             tbody.innerHTML = `<tr><td colspan="7" class="text-center text-muted py-4">No hay usuarios registrados que coincidan con la búsqueda.</td></tr>`;
             return;
         }
-
-        const businesses = DB.getLocalTable("businesses");
-        const roles = DB.getLocalTable("user_business_roles");
 
         tbody.innerHTML = users.map((u, i) => {
             const dateStr = u.created_at || u.trial_starts_at;
@@ -999,48 +1038,20 @@ class AdminManager {
         this.loadAdminPaymentMethods();
     }
 
-    async loadAdminBusinessesTable() {
+    loadAdminBusinessesTable() {
         const tbody = document.getElementById("adminBusinessesTableBody");
         if (!tbody) return;
 
-        let businesses = [];
-        let users = [];
+        let businesses = this.cache.businesses || DB.getLocalTable("businesses");
+        const users = this.cache.users || DB.getLocalTable("users");
 
-        try {
-            const bizRes = await DB.query("SELECT * FROM businesses");
-            if (bizRes && bizRes.rows && bizRes.rows.length > 0) {
-                businesses = bizRes.rows;
-                businesses.forEach(b => DB.setLocalRecord("businesses", b));
-            } else {
-                businesses = DB.getLocalTable("businesses");
-            }
-
-            const userRes = await DB.query("SELECT * FROM users");
-            if (userRes && userRes.rows && userRes.rows.length > 0) {
-                users = userRes.rows;
-                users.forEach(u => DB.setLocalRecord("users", u));
-            } else {
-                users = DB.getLocalTable("users");
-            }
-        } catch (e) {
-            businesses = DB.getLocalTable("businesses");
-            users = DB.getLocalTable("users");
-        }
-
-        // Combinar con LocalStorage para asegurar que cualquier negocio local esté visible
-        const localBiz = DB.getLocalTable("businesses");
-        localBiz.forEach(lb => {
-            if (!businesses.some(b => b.id === lb.id)) {
-                businesses.push(lb);
-            }
+        // Deduplicación estricta por id / owner_user_id / email
+        const bizMap = new Map();
+        businesses.forEach(b => {
+            const key = b.id || (b.owner_user_id ? "owner_" + b.owner_user_id : null) || (b.email ? "email_" + b.email.toLowerCase() : null);
+            if (key && !bizMap.has(key)) bizMap.set(key, b);
         });
-
-        const localUsers = DB.getLocalTable("users");
-        localUsers.forEach(lu => {
-            if (!users.some(u => u.id === lu.id)) {
-                users.push(lu);
-            }
-        });
+        businesses = Array.from(bizMap.values());
 
         // Actualizar contadores del DOM
         const countBadge = document.getElementById("adminTabBusinessesCount");
