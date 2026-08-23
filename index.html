@@ -989,6 +989,72 @@
         </div>
     </div>
 
+    <!-- 22. MODAL EDITAR USUARIO (ADMIN) -->
+    <div class="modal fade" id="modalEditUser" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content shadow-lg">
+                <div class="modal-header bg-warning text-dark">
+                    <h5 class="modal-title fw-bold"><i class="bi bi-pencil-square me-2"></i> Editar Datos de Usuario</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <form onsubmit="Admin.saveEditUser(event)">
+                        <input type="hidden" id="editUserId">
+                        <div class="mb-3">
+                            <label class="form-label fw-semibold">Nombre Completo de la Persona</label>
+                            <input type="text" id="editUserName" class="form-control" required>
+                        </div>
+                        <div class="row g-2 mb-3">
+                            <div class="col-md-6">
+                                <label class="form-label fw-semibold">Correo Electrónico</label>
+                                <input type="email" id="editUserEmail" class="form-control" required>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label fw-semibold">Teléfono / WhatsApp</label>
+                                <input type="text" id="editUserPhone" class="form-control" placeholder="Ej: 04141234567">
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label fw-semibold">Nombre del Comercio / Negocio</label>
+                            <input type="text" id="editUserBusinessName" class="form-control" placeholder="Ej: Inversiones Jh C.A.">
+                        </div>
+                        <div class="row g-2 mb-3">
+                            <div class="col-md-6">
+                                <label class="form-label fw-semibold">Rol del Sistema</label>
+                                <select id="editUserRole" class="form-select" required>
+                                    <option value="user">Usuario / Dueño</option>
+                                    <option value="superadmin">SuperAdmin</option>
+                                </select>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label fw-semibold">Tipo de Licencia</label>
+                                <select id="editUserMembershipType" class="form-select" required>
+                                    <option value="cortesia">Cortesía (Gratuita)</option>
+                                    <option value="comercial">Comercial (Pagada)</option>
+                                    <option value="prueba">Prueba Gratuita</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="row g-2 mb-3">
+                            <div class="col-md-6">
+                                <label class="form-label fw-semibold">Vencimiento Licencia</label>
+                                <input type="date" id="editUserMembershipExpDate" class="form-control">
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label fw-semibold">Estado de Acceso</label>
+                                <select id="editUserIsActive" class="form-select" required>
+                                    <option value="1">Activo</option>
+                                    <option value="0">Suspendido</option>
+                                </select>
+                            </div>
+                        </div>
+                        <button type="submit" class="btn btn-warning w-100 py-2 fw-bold text-dark"><i class="bi bi-save me-1"></i> Guardar Cambios del Usuario</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- 21. MODAL CUENTA SUSPENDIDA (USUARIO BLOQUEADO) -->
     <div class="modal fade" id="modalAccountSuspended" tabindex="-1" data-bs-backdrop="static" data-bs-keyboard="false" aria-hidden="true">
         <div class="modal-dialog modal-dialog-centered">
@@ -1013,15 +1079,15 @@
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script>
 
     <!-- Scripts del Sistema -->
-    <script src="./js/config.js?v=1.2.2"></script>
-    <script src="./js/db.js?v=1.2.2"></script>
-    <script src="./js/storage.js?v=1.2.2"></script>
-    <script src="./js/pdf_reports.js?v=1.2.2"></script>
-    <script src="./js/import_export.js?v=1.2.2"></script>
-    <script src="./js/auth.js?v=1.2.2"></script>
-    <script src="./js/admin.js?v=1.2.2"></script>
-    <script src="./js/user.js?v=1.2.2"></script>
-    <script src="./js/presets.js?v=1.2.2"></script>
-    <script src="./js/app.js?v=1.2.2"></script>
+    <script src="./js/config.js?v=1.3.0"></script>
+    <script src="./js/db.js?v=1.3.0"></script>
+    <script src="./js/storage.js?v=1.3.0"></script>
+    <script src="./js/pdf_reports.js?v=1.3.0"></script>
+    <script src="./js/import_export.js?v=1.3.0"></script>
+    <script src="./js/auth.js?v=1.3.0"></script>
+    <script src="./js/admin.js?v=1.3.0"></script>
+    <script src="./js/user.js?v=1.3.0"></script>
+    <script src="./js/presets.js?v=1.3.0"></script>
+    <script src="./js/app.js?v=1.3.0"></script>
 </body>
 </html>

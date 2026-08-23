@@ -294,10 +294,48 @@ class AdminManager {
     }
 
     async getGlobalStats() {
-        const businesses = DB.getLocalTable("businesses");
-        const users = DB.getLocalTable("users");
-        const payments = DB.getLocalTable("payments");
-        const products = DB.getLocalTable("products");
+        let businesses = [];
+        let users = [];
+        let payments = [];
+        let products = [];
+
+        try {
+            const bizRes = await DB.query("SELECT id FROM businesses");
+            businesses = (bizRes && bizRes.rows) ? bizRes.rows : DB.getLocalTable("businesses");
+        } catch (e) {
+            businesses = DB.getLocalTable("businesses");
+        }
+
+        try {
+            const usrRes = await DB.query("SELECT id FROM users");
+            users = (usrRes && usrRes.rows) ? usrRes.rows : DB.getLocalTable("users");
+        } catch (e) {
+            users = DB.getLocalTable("users");
+        }
+
+        try {
+            const payRes = await DB.query("SELECT * FROM payments");
+            payments = (payRes && payRes.rows) ? payRes.rows : DB.getLocalTable("payments");
+        } catch (e) {
+            payments = DB.getLocalTable("payments");
+        }
+
+        try {
+            const prodRes = await DB.query("SELECT id FROM products");
+            products = (prodRes && prodRes.rows) ? prodRes.rows : DB.getLocalTable("products");
+        } catch (e) {
+            products = DB.getLocalTable("products");
+        }
+
+        const localBiz = DB.getLocalTable("businesses");
+        localBiz.forEach(lb => {
+            if (!businesses.some(b => b.id === lb.id)) businesses.push(lb);
+        });
+
+        const localUsers = DB.getLocalTable("users");
+        localUsers.forEach(lu => {
+            if (!users.some(u => u.id === lu.id)) users.push(lu);
+        });
 
         return {
             totalBusinesses: businesses.length,
@@ -529,7 +567,7 @@ class AdminManager {
 
             // Buscar comercio y teléfono
             const uRole = roles.find(r => r.user_email === u.email);
-            const biz = businesses.find(b => (uRole && b.id === uRole.business_id) || b.owner_user_id === u.id) || {};
+            const biz = businesses.find(b => (uRole && b.id === uRole.business_id) || b.owner_user_id === u.id || b.email === u.email) || {};
             
             let phoneStr = biz.phone || u.phone || "";
             let phoneClean = phoneStr.replace(/[^0-9]/g, '');
@@ -569,9 +607,9 @@ class AdminManager {
                 <tr>
                     <td>${i + 1}</td>
                     <td>
-                        <strong>${u.name}</strong><br>
+                        <strong class="fs-6 text-dark">${u.name}</strong><br>
                         ${originBadge}
-                        ${biz.name ? `<br><small class="text-muted"><i class="bi bi-shop me-1"></i> ${biz.name}</small>` : ''}
+                        ${biz.name ? `<br><small class="text-muted fw-semibold"><i class="bi bi-shop me-1"></i> Comercio: ${biz.name}</small>` : ''}
                     </td>
                     <td>
                         <code>${u.email}</code><br>
@@ -582,16 +620,108 @@ class AdminManager {
                     <td>${statusBadge}<br>${accountStateBadge}</td>
                     <td class="text-end">
                         <div class="btn-group btn-group-sm">
-                            <button class="btn btn-outline-success" onclick="Admin.openGrantMembershipModal('${u.id}')" title="Asignar Membresía o Cortesía"><i class="bi bi-gift"></i> Cortesía</button>
+                            <button class="btn btn-outline-warning text-dark fw-semibold" onclick="Admin.openEditUserModal('${u.id}')" title="Editar Usuario"><i class="bi bi-pencil-square"></i> Editar</button>
+                            <button class="btn btn-outline-success fw-semibold" onclick="Admin.openGrantMembershipModal('${u.id}')" title="Asignar Membresía o Cortesía"><i class="bi bi-gift"></i> Cortesía</button>
                             ${isSuspended 
-                                ? `<button class="btn btn-outline-primary" onclick="Admin.toggleUserStatus('${u.id}', 1)" title="Activar Cuenta"><i class="bi bi-check-circle"></i> Activar</button>` 
-                                : `<button class="btn btn-outline-danger" onclick="Admin.toggleUserStatus('${u.id}', 0)" title="Suspender Cuenta"><i class="bi bi-slash-circle"></i> Suspender</button>`
+                                ? `<button class="btn btn-outline-primary fw-semibold" onclick="Admin.toggleUserStatus('${u.id}', 1)" title="Activar Cuenta"><i class="bi bi-check-circle"></i> Activar</button>` 
+                                : `<button class="btn btn-outline-danger fw-semibold" onclick="Admin.toggleUserStatus('${u.id}', 0)" title="Suspender Cuenta"><i class="bi bi-slash-circle"></i> Suspender</button>`
                             }
                         </div>
                     </td>
                 </tr>
             `;
         }).join("");
+    }
+
+    openEditUserModal(userId) {
+        const users = DB.getLocalTable("users");
+        const u = users.find(item => item.id === userId);
+        if (!u) return AppUI.showAlert("Error", "Usuario no encontrado", "warning");
+
+        const businesses = DB.getLocalTable("businesses");
+        const roles = DB.getLocalTable("user_business_roles");
+        const uRole = roles.find(r => r.user_email === u.email);
+        const biz = businesses.find(b => (uRole && b.id === uRole.business_id) || b.owner_user_id === u.id || b.email === u.email) || {};
+
+        document.getElementById("editUserId").value = u.id;
+        document.getElementById("editUserName").value = u.name || "";
+        document.getElementById("editUserEmail").value = u.email || "";
+        document.getElementById("editUserPhone").value = u.phone || biz.phone || "";
+        document.getElementById("editUserBusinessName").value = biz.name || "";
+        document.getElementById("editUserRole").value = u.role || "user";
+        document.getElementById("editUserMembershipType").value = u.membership_type || "prueba";
+        document.getElementById("editUserIsActive").value = (u.is_active !== undefined && u.is_active !== null ? u.is_active : 1).toString();
+
+        const expDate = u.membership_expires_at ? new Date(u.membership_expires_at).toISOString().split("T")[0] : "";
+        document.getElementById("editUserMembershipExpDate").value = expDate;
+
+        const modal = new bootstrap.Modal(document.getElementById("modalEditUser"));
+        modal.show();
+    }
+
+    async saveEditUser(event) {
+        event.preventDefault();
+        const userId = document.getElementById("editUserId").value;
+        const name = document.getElementById("editUserName").value.trim();
+        const email = document.getElementById("editUserEmail").value.trim();
+        const phone = document.getElementById("editUserPhone").value.trim();
+        const bizName = document.getElementById("editUserBusinessName").value.trim();
+        const role = document.getElementById("editUserRole").value;
+        const membershipType = document.getElementById("editUserMembershipType").value;
+        const expDateStr = document.getElementById("editUserMembershipExpDate").value;
+        const isActive = parseInt(document.getElementById("editUserIsActive").value);
+
+        if (!userId || !name || !email) return;
+
+        const expIso = expDateStr ? new Date(expDateStr + "T23:59:59").toISOString() : null;
+
+        // Actualizar usuario en LocalStorage
+        const users = DB.getLocalTable("users");
+        const idx = users.findIndex(u => u.id === userId);
+        if (idx >= 0) {
+            users[idx].name = name;
+            users[idx].email = email;
+            users[idx].phone = phone;
+            users[idx].role = role;
+            users[idx].membership_type = membershipType;
+            if (expIso) users[idx].membership_expires_at = expIso;
+            users[idx].is_active = isActive;
+            DB.setLocalTable("users", users);
+        }
+
+        // Actualizar comercio asociado en LocalStorage
+        const businesses = DB.getLocalTable("businesses");
+        const bizIdx = businesses.findIndex(b => b.owner_user_id === userId || b.email === email);
+        if (bizIdx >= 0) {
+            if (bizName) businesses[bizIdx].name = bizName;
+            if (phone) businesses[bizIdx].phone = phone;
+            DB.setLocalTable("businesses", businesses);
+        }
+
+        // Actualizar en Turso DB
+        try {
+            await DB.query(
+                "UPDATE users SET name = ?, email = ?, role = ?, membership_type = ?, membership_expires_at = ?, is_active = ? WHERE id = ?",
+                [name, email, role, membershipType, expIso, isActive, userId]
+            );
+        } catch (e) {
+            console.warn("Turso DB user update fallback:", e);
+        }
+
+        if (bizIdx >= 0 && bizName) {
+            try {
+                await DB.query(
+                    "UPDATE businesses SET name = ?, phone = ? WHERE id = ?",
+                    [bizName, phone, businesses[bizIdx].id]
+                );
+            } catch (e) {}
+        }
+
+        bootstrap.Modal.getInstance(document.getElementById("modalEditUser")).hide();
+        AppUI.showAlert("Usuario Actualizado", `Los datos de <strong>${name}</strong> han sido actualizados exitosamente.`, "success");
+        
+        await this.loadAdminUsersTable();
+        await this.loadAdminBusinessesTable();
     }
 
     openGrantMembershipModal(userId) {
@@ -912,13 +1042,17 @@ class AdminManager {
             }
         });
 
+        // Actualizar contadores del DOM
+        const countBadge = document.getElementById("adminTabBusinessesCount");
+        if (countBadge) countBadge.textContent = businesses.length;
+
         // Ordenar por fecha más reciente
         businesses.sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0));
 
         if (this.businessesSearchQuery) {
             const q = this.businessesSearchQuery.toLowerCase();
             businesses = businesses.filter(b => {
-                const owner = users.find(u => u.id === b.owner_user_id) || {};
+                const owner = users.find(u => u.id === b.owner_user_id || u.email === b.email) || {};
                 return (b.name && b.name.toLowerCase().includes(q)) ||
                        (b.email && b.email.toLowerCase().includes(q)) ||
                        (b.category_preset && b.category_preset.toLowerCase().includes(q)) ||
@@ -933,23 +1067,51 @@ class AdminManager {
         }
 
         tbody.innerHTML = businesses.map(b => {
-            const owner = users.find(u => u.id === b.owner_user_id) || { name: "Propietario", email: b.email || "N/A" };
+            const owner = users.find(u => u.id === b.owner_user_id || u.email === b.email) || { name: "Propietario Sin Registrar", email: b.email || "N/A" };
+            
+            // Estado de Membresía del Propietario
+            let membershipBadge = '<span class="badge bg-info text-dark">Prueba (15 días)</span>';
+            if (owner.membership_type === "cortesia") {
+                membershipBadge = `<span class="badge bg-warning text-dark"><i class="bi bi-gift-fill me-1"></i> Cortesía (${owner.membership_expires_at ? new Date(owner.membership_expires_at).toLocaleDateString() : 'Indefinida'})</span>`;
+            } else if (owner.membership_expires_at) {
+                const exp = new Date(owner.membership_expires_at);
+                if (exp > new Date()) {
+                    membershipBadge = `<span class="badge bg-success"><i class="bi bi-patch-check-fill me-1"></i> Comercial (${exp.toLocaleDateString()})</span>`;
+                } else {
+                    membershipBadge = `<span class="badge bg-danger"><i class="bi bi-exclamation-triangle-fill me-1"></i> Vencida (${exp.toLocaleDateString()})</span>`;
+                }
+            }
+
+            let phoneStr = b.phone || owner.phone || "";
+            let phoneClean = phoneStr.replace(/[^0-9]/g, '');
+            if (phoneClean.startsWith('0')) phoneClean = '58' + phoneClean.substring(1);
+            if (phoneClean && !phoneClean.startsWith('58') && !phoneClean.startsWith('56') && !phoneClean.startsWith('52') && phoneClean.length === 10) {
+                phoneClean = '58' + phoneClean;
+            }
+
+            const waBtn = phoneClean 
+                ? `<a href="https://wa.me/${phoneClean}" target="_blank" class="btn btn-xs btn-outline-success py-0 px-2 small ms-1" title="Contactar por WhatsApp"><i class="bi bi-whatsapp"></i> ${phoneStr}</a>`
+                : `<span class="text-muted small">${phoneStr || 'Sin tlf'}</span>`;
+
             return `
                 <tr>
                     <td>
                         <div class="d-flex align-items-center">
-                            ${b.logo_url ? `<img src="${b.logo_url}" class="rounded me-2 border" style="width: 32px; height: 32px; object-fit: contain;">` : '<div class="bg-primary text-white rounded me-2 d-flex align-items-center justify-content-center" style="width: 32px; height: 32px;"><i class="bi bi-building"></i></div>'}
+                            ${b.logo_url ? `<img src="${b.logo_url}" class="rounded me-2 border shadow-sm" style="width: 38px; height: 38px; object-fit: contain;">` : '<div class="bg-primary text-white rounded me-2 d-flex align-items-center justify-content-center fw-bold fs-5" style="width: 38px; height: 38px;"><i class="bi bi-building"></i></div>'}
                             <div>
-                                <strong>${b.name}</strong><br>
+                                <strong class="fs-6 text-dark"><i class="bi bi-shop me-1 text-primary"></i> ${b.name}</strong><br>
                                 <small class="text-muted">Categoría: ${b.category_preset || 'General'} ${b.rif ? '| RIF: ' + b.rif : ''}</small>
                             </div>
                         </div>
                     </td>
-                    <td>${owner.name}<br><small class="text-muted">${owner.email}</small></td>
-                    <td>${b.phone || 'N/A'}</td>
-                    <td><span class="badge bg-success">Activo</span></td>
+                    <td>
+                        <strong>${owner.name}</strong><br>
+                        <small class="text-muted">${owner.email}</small>
+                    </td>
+                    <td>${waBtn}</td>
+                    <td>${membershipBadge}</td>
                     <td class="text-end">
-                        <button class="btn btn-sm btn-outline-primary" onclick="Admin.showBusinessDetailsModal('${b.id}')"><i class="bi bi-eye"></i> Detalles</button>
+                        <button class="btn btn-sm btn-outline-primary fw-semibold" onclick="Admin.showBusinessDetailsModal('${b.id}')"><i class="bi bi-eye"></i> Detalles</button>
                     </td>
                 </tr>
             `;
