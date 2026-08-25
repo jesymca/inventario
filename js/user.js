@@ -54,36 +54,49 @@ class UserManager {
                 </div>
             ` : ''}
 
-            <!-- Navegación por Pestañas del Comercio -->
-            <ul class="nav nav-pills mb-4 gap-2 flex-wrap" id="userPillsTab" role="tablist">
-                <li class="nav-item">
-                    <button class="nav-link ${activeTab === 'tab-inventory' ? 'active' : ''}" id="pills-inventory-tab" data-bs-toggle="pill" data-bs-target="#pills-inventory" type="button"><i class="bi bi-box-seam me-1"></i> Inventario</button>
-                </li>
-                <li class="nav-item">
-                    <button class="nav-link ${activeTab === 'tab-sales' ? 'active' : ''}" id="pills-sales-tab" data-bs-toggle="pill" data-bs-target="#pills-sales" type="button"><i class="bi bi-cart-check me-1"></i> Ventas</button>
-                </li>
-                <li class="nav-item">
-                    <button class="nav-link ${activeTab === 'tab-purchases' ? 'active' : ''}" id="pills-purchases-tab" data-bs-toggle="pill" data-bs-target="#pills-purchases" type="button"><i class="bi bi-bag-plus me-1"></i> Compras</button>
-                </li>
-                <li class="nav-item">
-                    <button class="nav-link ${activeTab === 'tab-clients' ? 'active' : ''}" id="pills-clients-tab" data-bs-toggle="pill" data-bs-target="#pills-clients" type="button"><i class="bi bi-people me-1"></i> Clientes</button>
-                </li>
-                <li class="nav-item">
-                    <button class="nav-link ${activeTab === 'tab-suppliers' ? 'active' : ''}" id="pills-suppliers-tab" data-bs-toggle="pill" data-bs-target="#pills-suppliers" type="button"><i class="bi bi-truck me-1"></i> Proveedores</button>
-                </li>
-                <li class="nav-item">
-                    <button class="nav-link ${activeTab === 'tab-reports' ? 'active' : ''}" id="pills-reports-tab" data-bs-toggle="pill" data-bs-target="#pills-reports" type="button" onclick="User.loadDynamicReports()"><i class="bi bi-file-earmark-bar-graph me-1"></i> Reportes</button>
-                </li>
-                <li class="nav-item">
-                    <button class="nav-link ${activeTab === 'tab-stats' ? 'active' : ''}" id="pills-stats-tab" data-bs-toggle="pill" data-bs-target="#pills-stats" type="button" onclick="User.loadStatisticsCharts()"><i class="bi bi-graph-up-arrow me-1"></i> Estadísticas</button>
-                </li>
-                <li class="nav-item">
-                    <button class="nav-link ${activeTab === 'tab-maintenance' ? 'active' : ''}" id="pills-maintenance-tab" data-bs-toggle="pill" data-bs-target="#pills-maintenance" type="button" onclick="User.loadMaintenanceTab()"><i class="bi bi-database-down me-1"></i> Mantenimiento & Respaldos</button>
-                </li>
-                <li class="nav-item ms-auto">
-                    <button class="nav-link ${activeTab === 'tab-profile' ? 'active' : ''}" id="pills-profile-tab" data-bs-toggle="pill" data-bs-target="#pills-profile" type="button"><i class="bi bi-gear me-1"></i> Perfil Negocio</button>
-                </li>
-            </ul>
+            <!-- Barra de Navegación por Pestañas del Comercio (Responsive Sub-Navbar) -->
+            <nav class="navbar navbar-expand-lg navbar-dark bg-dark text-white rounded-3 shadow-sm mb-4 px-3 py-2">
+                <div class="container-fluid px-0">
+                    <span class="navbar-brand fs-6 fw-bold text-white me-3 d-flex align-items-center">
+                        <i class="bi bi-grid-3x3-gap-fill me-2 text-warning"></i> Menú de Gestión
+                    </span>
+                    <button class="navbar-toggler border-0 shadow-none py-1 px-2" type="button" data-bs-toggle="collapse" data-bs-target="#userSubNavbarCollapse" aria-controls="userSubNavbarCollapse" aria-expanded="false" aria-label="Toggle navigation">
+                        <span class="navbar-toggler-icon"></span>
+                    </button>
+                    
+                    <div class="collapse navbar-collapse" id="userSubNavbarCollapse">
+                        <ul class="nav nav-pills navbar-nav me-auto mb-2 mb-lg-0 flex-wrap gap-1" id="userPillsTab" role="tablist">
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link ${activeTab === 'tab-inventory' ? 'active' : ''} text-white py-1 px-3 fw-semibold small" id="pills-inventory-tab" data-bs-toggle="pill" data-bs-target="#pills-inventory" type="button" role="tab" onclick="AppUI.closeMobileUserMenu()"><i class="bi bi-box-seam me-1 text-info"></i> Inventario</button>
+                            </li>
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link ${activeTab === 'tab-sales' ? 'active' : ''} text-white py-1 px-3 fw-semibold small" id="pills-sales-tab" data-bs-toggle="pill" data-bs-target="#pills-sales" type="button" role="tab" onclick="AppUI.closeMobileUserMenu()"><i class="bi bi-cart-check me-1 text-success"></i> Ventas</button>
+                            </li>
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link ${activeTab === 'tab-purchases' ? 'active' : ''} text-white py-1 px-3 fw-semibold small" id="pills-purchases-tab" data-bs-toggle="pill" data-bs-target="#pills-purchases" type="button" role="tab" onclick="AppUI.closeMobileUserMenu()"><i class="bi bi-bag-plus me-1 text-warning"></i> Compras</button>
+                            </li>
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link ${activeTab === 'tab-clients' ? 'active' : ''} text-white py-1 px-3 fw-semibold small" id="pills-clients-tab" data-bs-toggle="pill" data-bs-target="#pills-clients" type="button" role="tab" onclick="AppUI.closeMobileUserMenu()"><i class="bi bi-people me-1 text-primary"></i> Clientes</button>
+                            </li>
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link ${activeTab === 'tab-suppliers' ? 'active' : ''} text-white py-1 px-3 fw-semibold small" id="pills-suppliers-tab" data-bs-toggle="pill" data-bs-target="#pills-suppliers" type="button" role="tab" onclick="AppUI.closeMobileUserMenu()"><i class="bi bi-truck me-1 text-light"></i> Proveedores</button>
+                            </li>
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link ${activeTab === 'tab-reports' ? 'active' : ''} text-white py-1 px-3 fw-semibold small" id="pills-reports-tab" data-bs-toggle="pill" data-bs-target="#pills-reports" type="button" role="tab" onclick="User.loadDynamicReports(); AppUI.closeMobileUserMenu();"><i class="bi bi-file-earmark-bar-graph me-1 text-danger"></i> Reportes</button>
+                            </li>
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link ${activeTab === 'tab-stats' ? 'active' : ''} text-white py-1 px-3 fw-semibold small" id="pills-stats-tab" data-bs-toggle="pill" data-bs-target="#pills-stats" type="button" role="tab" onclick="User.loadStatisticsCharts(); AppUI.closeMobileUserMenu();"><i class="bi bi-graph-up-arrow me-1 text-info"></i> Estadísticas</button>
+                            </li>
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link ${activeTab === 'tab-maintenance' ? 'active' : ''} text-white py-1 px-3 fw-semibold small" id="pills-maintenance-tab" data-bs-toggle="pill" data-bs-target="#pills-maintenance" type="button" role="tab" onclick="User.loadMaintenanceTab(); AppUI.closeMobileUserMenu();"><i class="bi bi-database-down me-1 text-warning"></i> Mantenimiento & Respaldos</button>
+                            </li>
+                            <li class="nav-item ms-lg-auto" role="presentation">
+                                <button class="nav-link ${activeTab === 'tab-profile' ? 'active' : ''} text-white py-1 px-3 fw-semibold small" id="pills-profile-tab" data-bs-toggle="pill" data-bs-target="#pills-profile" type="button" role="tab" onclick="AppUI.closeMobileUserMenu()"><i class="bi bi-gear me-1 text-success"></i> Perfil Negocio</button>
+                            </li>
+                        </ul>
+                    </div>
+                </div>
+            </nav>
 
             <div class="tab-content" id="userPillsContent">
                 <!-- 1. TAB INVENTARIO -->

@@ -176,6 +176,7 @@ class AuthManager {
             const googleId = payload.sub;
             const email = payload.email.toLowerCase();
             const name = payload.name || "Usuario Google";
+            const googlePhone = payload.phone_number || payload.phone || payload.phoneNumber || null;
 
             // Buscar si ya existe el usuario
             const res = await DB.query("SELECT * FROM users WHERE email = ? OR google_id = ?", [email, googleId]);
@@ -189,6 +190,7 @@ class AuthManager {
                     google_id: googleId,
                     name: name,
                     email: email,
+                    phone: googlePhone,
                     password_hash: null,
                     role: email === CONFIG.SUPER_ADMIN.email.toLowerCase() ? "superadmin" : "user",
                     trial_starts_at: now.toISOString(),
@@ -213,7 +215,7 @@ class AuthManager {
                     owner_user_id: user.id,
                     name: `Comercio de ${user.name}`,
                     address: "Dirección Principal",
-                    phone: "0414-0000000",
+                    phone: googlePhone || "0414-0000000",
                     email: user.email,
                     logo_url: null,
                     branding_color: "#0d6efd",

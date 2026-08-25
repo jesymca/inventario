@@ -28,6 +28,46 @@
 
     <!-- Chart.js CDN para Gráficos y Estadísticas Dinámicas -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <!-- Estilos Personalizados y Correcciones Responsive para Celulares -->
+    <style>
+        /* Prevenir desbordamiento de menús desplegables en teléfonos móviles */
+        @media (max-width: 991.98px) {
+            .dropdown-menu {
+                max-width: 92vw !important;
+                right: 0 !important;
+                left: auto !important;
+                transform: none !important;
+                overflow-x: hidden;
+            }
+            .navbar-nav .dropdown-menu {
+                position: absolute !important;
+                float: none !important;
+            }
+            .table-responsive {
+                max-width: 100%;
+                overflow-x: auto;
+                -webkit-overflow-scrolling: touch;
+            }
+            .btn-group {
+                flex-wrap: wrap;
+            }
+        }
+        
+        /* Estilos mejorados para las nav-pills del Sub-Navbar */
+        .nav-pills .nav-link {
+            border-radius: 6px;
+            transition: all 0.2s ease-in-out;
+        }
+        .nav-pills .nav-link:hover {
+            background-color: rgba(255, 255, 255, 0.18);
+        }
+        .nav-pills .nav-link.active {
+            background-color: #0d6efd !important;
+            color: #ffffff !important;
+            box-shadow: 0 2px 5px rgba(13, 110, 253, 0.4);
+        }
+    </style>
 </head>
 <body class="bg-body-tertiary d-flex flex-column min-vh-100">
 
@@ -1156,15 +1196,15 @@
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script>
 
     <!-- Scripts del Sistema -->
-    <script src="./js/config.js?v=1.4.0"></script>
-    <script src="./js/db.js?v=1.4.0"></script>
-    <script src="./js/storage.js?v=1.4.0"></script>
-    <script src="./js/pdf_reports.js?v=1.4.0"></script>
-    <script src="./js/import_export.js?v=1.4.0"></script>
-    <script src="./js/auth.js?v=1.4.0"></script>
-    <script src="./js/admin.js?v=1.4.0"></script>
-    <script src="./js/user.js?v=1.4.0"></script>
-    <script src="./js/presets.js?v=1.4.0"></script>
-    <script src="./js/app.js?v=1.4.0"></script>
+    <script src="./js/config.js?v=1.5.0"></script>
+    <script src="./js/db.js?v=1.5.0"></script>
+    <script src="./js/storage.js?v=1.5.0"></script>
+    <script src="./js/pdf_reports.js?v=1.5.0"></script>
+    <script src="./js/import_export.js?v=1.5.0"></script>
+    <script src="./js/auth.js?v=1.5.0"></script>
+    <script src="./js/admin.js?v=1.5.0"></script>
+    <script src="./js/user.js?v=1.5.0"></script>
+    <script src="./js/presets.js?v=1.5.0"></script>
+    <script src="./js/app.js?v=1.5.0"></script>
 </body>
 </html>

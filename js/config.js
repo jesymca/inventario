@@ -16,6 +16,9 @@ const CONFIG = {
         name: "José Herrera (SuperAdmin)"
     },
 
+    // API Tasa de Cambio DolarAPI
+    DOLAR_API_URL: "https://ve.dolarapi.com/v1/dolares",
+
     // Tarifas del sistema (con valores dinámicos y respaldo)
     _membership_price_usd: null,
     _default_bcv_rate: null,

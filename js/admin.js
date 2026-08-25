@@ -354,22 +354,33 @@ class AdminManager {
                         <div class="card-body">
                             <div class="row g-3">
                                 <div class="col-md-4">
-                                    <div class="card border p-3">
-                                        <h6 class="fw-bold"><i class="bi bi-database me-2"></i> Estado de la Base de Datos Turso DB</h6>
+                                    <div class="card border p-3 shadow-sm h-100">
+                                        <h6 class="fw-bold"><i class="bi bi-database me-2 text-primary"></i> Estado de la Base de Datos Turso DB</h6>
                                         <p class="small text-muted mb-2">Motor primario SQLite distribuido en la nube.</p>
                                         <div id="statusTursoDB" class="badge bg-secondary p-2">Verificando conexión...</div>
                                     </div>
                                 </div>
                                 <div class="col-md-4">
-                                    <div class="card border p-3">
-                                        <h6 class="fw-bold"><i class="bi bi-currency-dollar me-2"></i> API Tasa de Cambio (ve.dolarapi.com)</h6>
+                                    <div class="card border p-3 shadow-sm h-100">
+                                        <h6 class="fw-bold"><i class="bi bi-currency-dollar me-2 text-success"></i> API Tasa de Cambio</h6>
                                         <p class="small text-muted mb-2">Monitoreo en vivo de la tasa oficial BCV.</p>
-                                        <div id="statusDolarAPI" class="badge bg-secondary p-2">Verificando API...</div>
+                                        <div id="statusDolarAPI" class="badge bg-secondary p-2 mb-3">Verificando API...</div>
+                                        
+                                        <div class="mt-2 pt-2 border-top">
+                                            <label class="form-label small fw-bold text-dark mb-1"><i class="bi bi-link-45deg"></i> Endpoint URL Configurado:</label>
+                                            <div class="input-group input-group-sm mb-2">
+                                                <input type="text" class="form-control bg-body-tertiary font-monospace" value="${CONFIG.DOLAR_API_URL || 'https://ve.dolarapi.com/v1/dolares'}" readonly>
+                                            </div>
+                                            <div class="alert alert-info py-2 px-2 small mb-0" style="font-size: 0.78rem; line-height: 1.3;">
+                                                <i class="bi bi-info-circle-fill me-1 text-info"></i> <strong>¿Dónde modificar este enlace?</strong><br>
+                                                Si este servicio cambia de dirección en el futuro, puedes editar el dato en el archivo <code class="fw-bold text-dark">js/config.js</code> en la variable <code class="fw-bold text-dark">CONFIG.DOLAR_API_URL</code>.
+                                            </div>
+                                        </div>
                                     </div>
                                 </div>
                                 <div class="col-md-4">
-                                    <div class="card border p-3">
-                                        <h6 class="fw-bold"><i class="bi bi-cloud-arrow-up me-2"></i> Alojamiento de Imágenes (Cloudflare R2)</h6>
+                                    <div class="card border p-3 shadow-sm h-100">
+                                        <h6 class="fw-bold"><i class="bi bi-cloud-arrow-up me-2 text-info"></i> Alojamiento de Imágenes (Cloudflare R2)</h6>
                                         <p class="small text-muted mb-2">Servicio de almacenamiento de logos y fotos.</p>
                                         <div id="statusR2Storage" class="badge bg-secondary p-2">Verificando servicio...</div>
                                     </div>
@@ -660,6 +671,41 @@ class AdminManager {
         modal.show();
     }
 
+    // Helper robusto para buscar usuario en Cache y LocalStorage por ID o Email
+    getUserById(userId) {
+        if (!userId) return null;
+        const cacheUsers = this.cache.users || [];
+        const localUsers = DB.getLocalTable("users") || [];
+        const targetStr = String(userId).toLowerCase();
+        
+        return cacheUsers.find(u => String(u.id).toLowerCase() === targetStr || (u.email && u.email.toLowerCase() === targetStr)) ||
+               localUsers.find(u => String(u.id).toLowerCase() === targetStr || (u.email && u.email.toLowerCase() === targetStr));
+    }
+
+    // Helper para actualizar datos de usuario simultáneamente en memoria (cache) y almacenamiento local
+    updateUserInCacheAndStorage(userId, updatedFields) {
+        if (!userId) return;
+        const targetStr = String(userId).toLowerCase();
+
+        // 1. LocalStorage
+        const localUsers = DB.getLocalTable("users") || [];
+        const localIdx = localUsers.findIndex(u => String(u.id).toLowerCase() === targetStr || (u.email && u.email.toLowerCase() === targetStr));
+        if (localIdx >= 0) {
+            localUsers[localIdx] = { ...localUsers[localIdx], ...updatedFields };
+            DB.setLocalTable("users", localUsers);
+        }
+
+        // 2. Cache en Memoria
+        if (this.cache.users) {
+            const cacheIdx = this.cache.users.findIndex(u => String(u.id).toLowerCase() === targetStr || (u.email && u.email.toLowerCase() === targetStr));
+            if (cacheIdx >= 0) {
+                this.cache.users[cacheIdx] = { ...this.cache.users[cacheIdx], ...updatedFields };
+            } else if (localIdx >= 0) {
+                this.cache.users.push(localUsers[localIdx]);
+            }
+        }
+    }
+
     loadAdminUsersTable() {
         const tbody = document.getElementById("adminUsersTableBody");
         if (!tbody) return;
@@ -687,6 +733,8 @@ class AdminManager {
             return;
         }
 
+        const now = new Date();
+
         tbody.innerHTML = users.map((u, i) => {
             const dateStr = u.created_at || u.trial_starts_at;
             const regDate = dateStr ? new Date(dateStr).toLocaleDateString() + " " + new Date(dateStr).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : "Reciente";
@@ -708,22 +756,66 @@ class AdminManager {
                 : `<span class="text-muted small">${phoneStr || 'Sin tlf'}</span>`;
 
             // Distintivo de Método de Registro (Google vs Registro Directo)
-            const isGoogle = (u.google_id || (u.id && u.id.startsWith("usr_g_")));
+            const isGoogle = (u.google_id || (u.id && String(u.id).startsWith("usr_g_")));
             const originBadge = isGoogle
                 ? '<span class="badge bg-danger text-white me-1"><i class="bi bi-google me-1"></i> Google OAuth</span>'
                 : '<span class="badge bg-secondary text-white me-1"><i class="bi bi-person-check me-1"></i> Directo</span>';
 
+            // Membresía, Fecha de Vencimiento y Cálculo de Días Restantes
+            let expDate = null;
+            let totalDurationDays = 15;
+
+            if (u.membership_expires_at) {
+                expDate = new Date(u.membership_expires_at);
+                totalDurationDays = u.membership_type === "cortesia" ? 365 : 30;
+            } else if (u.trial_starts_at || u.created_at) {
+                expDate = new Date(new Date(u.trial_starts_at || u.created_at).getTime() + 15 * 86400000);
+                totalDurationDays = 15;
+            } else {
+                expDate = new Date(now.getTime() + 15 * 86400000);
+                totalDurationDays = 15;
+            }
+
+            const diffTime = expDate ? (expDate.getTime() - now.getTime()) : 0;
+            const daysLeft = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
             let statusBadge = '<span class="badge bg-info text-dark">En Prueba (15 días)</span>';
             if (u.membership_type === "cortesia") {
-                statusBadge = `<span class="badge bg-warning text-dark"><i class="bi bi-gift-fill me-1"></i> Cortesía (${u.membership_expires_at ? new Date(u.membership_expires_at).toLocaleDateString() : 'Indefinida'})</span>`;
+                statusBadge = `<span class="badge bg-warning text-dark"><i class="bi bi-gift-fill me-1"></i> Cortesía (${expDate ? expDate.toLocaleDateString() : 'Indefinida'})</span>`;
             } else if (u.membership_expires_at) {
-                const exp = new Date(u.membership_expires_at);
-                if (exp > new Date()) {
-                    statusBadge = `<span class="badge bg-success">Activa (${exp.toLocaleDateString()})</span>`;
+                if (daysLeft > 0) {
+                    statusBadge = `<span class="badge bg-success"><i class="bi bi-patch-check-fill me-1"></i> Comercial (${expDate.toLocaleDateString()})</span>`;
                 } else {
-                    statusBadge = `<span class="badge bg-danger">Vencida (${exp.toLocaleDateString()})</span>`;
+                    statusBadge = `<span class="badge bg-danger"><i class="bi bi-exclamation-triangle-fill me-1"></i> Vencida (${expDate.toLocaleDateString()})</span>`;
                 }
             }
+
+            // Calcular porcentaje y clase de la barra de progreso
+            let pct = 0;
+            let barClass = "bg-danger";
+
+            if (daysLeft > 0) {
+                pct = Math.min(100, Math.max(5, Math.round((daysLeft / totalDurationDays) * 100)));
+                if (daysLeft > 7) barClass = "bg-success";
+                else if (daysLeft > 3) barClass = "bg-warning";
+                else barClass = "bg-danger";
+            } else {
+                pct = 0;
+                barClass = "bg-danger";
+            }
+
+            const daysRemainingHtml = daysLeft > 0
+                ? `<small class="fw-bold text-dark d-block mt-1"><i class="bi bi-clock-history me-1 text-primary"></i> Restan <strong>${daysLeft}</strong> día${daysLeft !== 1 ? 's' : ''}</small>`
+                : `<small class="fw-bold text-danger d-block mt-1"><i class="bi bi-x-circle me-1"></i> Membresía Vencida</small>`;
+
+            const progressBarHtml = `
+                <div class="my-1" style="min-width: 130px;">
+                    <div class="progress" style="height: 6px; background-color: rgba(0,0,0,0.1);" title="${daysLeft > 0 ? 'Restan ' + daysLeft + ' días' : 'Vencida'}">
+                        <div class="progress-bar ${barClass} progress-bar-striped progress-bar-animated" role="progressbar" style="width: ${pct}%;" aria-valuenow="${pct}" aria-valuemin="0" aria-valuemax="100"></div>
+                    </div>
+                    ${daysRemainingHtml}
+                </div>
+            `;
 
             const isSuspended = Number(u.is_active) === 0;
             const accountStateBadge = isSuspended
@@ -744,7 +836,7 @@ class AdminManager {
                     </td>
                     <td>${roleBadge}</td>
                     <td><i class="bi bi-calendar-event me-1 text-muted"></i> ${regDate}</td>
-                    <td>${statusBadge}<br>${accountStateBadge}</td>
+                    <td>${statusBadge}${progressBarHtml}${accountStateBadge}</td>
                     <td class="text-end">
                         <div class="btn-group btn-group-sm">
                             <button class="btn btn-outline-warning text-dark fw-semibold" onclick="Admin.openEditUserModal('${u.id}')" title="Editar Usuario"><i class="bi bi-pencil-square"></i> Editar</button>
@@ -761,11 +853,10 @@ class AdminManager {
     }
 
     openEditUserModal(userId) {
-        const users = DB.getLocalTable("users");
-        const u = users.find(item => item.id === userId);
+        const u = this.getUserById(userId);
         if (!u) return AppUI.showAlert("Error", "Usuario no encontrado", "warning");
 
-        const businesses = DB.getLocalTable("businesses");
+        const businesses = this.cache.businesses || DB.getLocalTable("businesses");
         const roles = DB.getLocalTable("user_business_roles");
         const uRole = roles.find(r => r.user_email === u.email);
         const biz = businesses.find(b => (uRole && b.id === uRole.business_id) || b.owner_user_id === u.id || b.email === u.email) || {};
@@ -802,19 +893,13 @@ class AdminManager {
 
         const expIso = expDateStr ? new Date(expDateStr + "T23:59:59").toISOString() : null;
 
-        // Actualizar usuario en LocalStorage
-        const users = DB.getLocalTable("users");
-        const idx = users.findIndex(u => u.id === userId);
-        if (idx >= 0) {
-            users[idx].name = name;
-            users[idx].email = email;
-            users[idx].phone = phone;
-            users[idx].role = role;
-            users[idx].membership_type = membershipType;
-            if (expIso) users[idx].membership_expires_at = expIso;
-            users[idx].is_active = isActive;
-            DB.setLocalTable("users", users);
-        }
+        // Actualizar usuario en Memoria y LocalStorage
+        this.updateUserInCacheAndStorage(userId, {
+            name, email, phone, role,
+            membership_type: membershipType,
+            membership_expires_at: expIso,
+            is_active: isActive
+        });
 
         // Actualizar comercio asociado en LocalStorage
         const businesses = DB.getLocalTable("businesses");
@@ -852,8 +937,7 @@ class AdminManager {
     }
 
     openGrantMembershipModal(userId) {
-        const users = DB.getLocalTable("users");
-        const u = users.find(item => item.id === userId);
+        const u = this.getUserById(userId);
         if (!u) return AppUI.showAlert("Error", "Usuario no encontrado", "warning");
 
         document.getElementById("grantMembershipUserId").value = u.id;
@@ -886,22 +970,19 @@ class AdminManager {
 
         const expIso = new Date(expDateStr + "T23:59:59").toISOString();
 
-        const users = DB.getLocalTable("users");
-        const idx = users.findIndex(u => u.id === userId);
-        if (idx >= 0) {
-            users[idx].membership_expires_at = expIso;
-            users[idx].membership_type = type;
-            users[idx].is_active = 1;
+        // Actualizar usuario en Memoria y LocalStorage
+        this.updateUserInCacheAndStorage(userId, {
+            membership_expires_at: expIso,
+            membership_type: type,
+            is_active: 1
+        });
 
-            try {
-                await DB.query(
-                    "UPDATE users SET membership_expires_at = ?, membership_type = ?, is_active = 1 WHERE id = ?",
-                    [expIso, type, userId]
-                );
-            } catch (e) {}
-
-            DB.setLocalTable("users", users);
-        }
+        try {
+            await DB.query(
+                "UPDATE users SET membership_expires_at = ?, membership_type = ?, is_active = 1 WHERE id = ?",
+                [expIso, type, userId]
+            );
+        } catch (e) {}
 
         bootstrap.Modal.getInstance(document.getElementById("modalGrantMembership")).hide();
         AppUI.showAlert("Membresía Otorgada", `¡Licencia de ${type.toUpperCase()} asignada con éxito hasta el ${new Date(expIso).toLocaleDateString()}!`, "success");
@@ -909,23 +990,20 @@ class AdminManager {
     }
 
     async toggleUserStatus(userId, newStatus) {
-        const users = DB.getLocalTable("users");
-        const idx = users.findIndex(u => u.id === userId);
-        if (idx < 0) return;
+        const u = this.getUserById(userId);
+        if (!u) return AppUI.showAlert("Error", "Usuario no encontrado", "warning");
 
-        const u = users[idx];
         const actionLabel = newStatus === 0 ? "suspender" : "activar";
 
         AppUI.showConfirm(
             `Confirmar Acción`,
             `¿Estás seguro de que deseas ${actionLabel} la cuenta de <strong>${u.name}</strong> (${u.email})?`,
             async () => {
-                users[idx].is_active = newStatus;
+                this.updateUserInCacheAndStorage(userId, { is_active: newStatus });
                 try {
                     await DB.query("UPDATE users SET is_active = ? WHERE id = ?", [newStatus, userId]);
                 } catch (e) {}
 
-                DB.setLocalTable("users", users);
                 AppUI.showAlert("Estado Actualizado", `La cuenta ha sido ${newStatus === 0 ? 'SUSPENDIDA' : 'ACTIVADA'} correctamente.`, newStatus === 0 ? "warning" : "success");
                 Admin.loadAdminUsersTable();
             }

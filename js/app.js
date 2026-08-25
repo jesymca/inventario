@@ -532,6 +532,18 @@ class AppUIManager {
 
         this.renderApp();
     }
+
+    closeMobileUserMenu() {
+        const el = document.getElementById("userSubNavbarCollapse");
+        if (el && el.classList.contains("show")) {
+            try {
+                const bsCollapse = bootstrap.Collapse.getInstance(el) || new bootstrap.Collapse(el, { toggle: false });
+                bsCollapse.hide();
+            } catch (e) {
+                el.classList.remove("show");
+            }
+        }
+    }
 }
 
 const AppUI = new AppUIManager();
