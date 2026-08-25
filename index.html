@@ -280,72 +280,118 @@
 
     <!-- 4. MODAL NUEVO PRODUCTO -->
     <div class="modal fade" id="modalNewProduct" tabindex="-1" aria-hidden="true">
-        <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-dialog modal-dialog-centered modal-lg">
             <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title fw-bold"><i class="bi bi-box-seam me-2"></i> Nuevo Producto</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                <div class="modal-header bg-primary text-white">
+                    <h5 class="modal-title fw-bold"><i class="bi bi-box-seam me-2"></i> Registrar Nuevo Producto</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
                 <div class="modal-body">
                     <form onsubmit="User.saveNewProduct(event)">
-                        <div class="mb-3">
-                            <label class="form-label fw-semibold">Nombre del Producto</label>
-                            <input type="text" name="name" class="form-control" required>
-                        </div>
-                        <div class="mb-3">
-                            <label class="form-label fw-semibold">Descripción</label>
-                            <textarea name="description" class="form-control" rows="2"></textarea>
-                        </div>
+                        <!-- Datos Básicos -->
                         <div class="row g-2 mb-3">
                             <div class="col-md-6">
-                                <label class="form-label fw-semibold">Cantidad Inicial (Stock)</label>
-                                <input type="number" name="quantity" class="form-control" value="0" required>
+                                <label class="form-label fw-semibold">Nombre del Producto</label>
+                                <input type="text" name="name" class="form-control" placeholder="Ej: Arroz Primor 1Kg" required>
                             </div>
-                            <div class="col-md-6">
+                            <div class="col-md-3">
                                 <label class="form-label fw-semibold">Categoría</label>
-                                <input type="text" name="category" class="form-control" placeholder="General">
+                                <input type="text" name="category" class="form-control" placeholder="Ej: Víveres">
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label fw-semibold">Stock Inicial (Unds.)</label>
+                                <input type="number" name="quantity" class="form-control" value="0" min="0" required>
                             </div>
                         </div>
-                        <div class="row g-2 mb-3">
-                            <div class="col-md-6">
-                                <label class="form-label fw-semibold">Precio Compra ($)</label>
-                                <input type="number" step="0.01" name="purchase_price" class="form-control" value="0.00" required>
-                            </div>
-                            <div class="col-md-6">
-                                <label class="form-label fw-semibold">Precio Venta ($)</label>
-                                <input type="number" step="0.01" name="sale_price" class="form-control" value="0.00" required>
-                            </div>
-                        </div>
-                        <!-- Configuración Venta Mayor / Detal -->
-                        <div class="row g-2 mb-3">
-                            <div class="col-md-4">
-                                <label class="form-label fw-semibold">Tipo de Venta</label>
-                                <select name="sell_type" class="form-select" onchange="document.getElementById('wholesaleFieldsNew').style.display = this.value === 'wholesale' || this.value === 'both' ? 'flex' : 'none'">
-                                    <option value="retail">Solo Detal</option>
-                                    <option value="wholesale">Solo al Mayor</option>
-                                    <option value="both">Detal y Mayor</option>
-                                </select>
-                            </div>
-                            <div class="col-md-4">
-                                <label class="form-label fw-semibold">Und. por Bulto/Paquete</label>
-                                <input type="number" name="units_per_package" class="form-control" value="1" min="1" title="Cuántas unidades trae cada bulto o paquete">
-                            </div>
-                        </div>
-                        <div class="row g-2 mb-3" id="wholesaleFieldsNew" style="display:none;">
-                            <div class="col-md-6">
-                                <label class="form-label fw-semibold"><i class="bi bi-box2-heart me-1"></i> Precio Mayor ($)</label>
-                                <input type="number" step="0.01" name="wholesale_price" class="form-control" value="0.00">
-                            </div>
-                            <div class="col-md-6">
-                                <label class="form-label fw-semibold">Cant. Mínima para Mayor</label>
-                                <input type="number" name="wholesale_min_qty" class="form-control" value="12" min="1" title="Cantidad mínima de unidades para aplicar precio al mayor">
-                            </div>
-                        </div>
+
                         <div class="mb-3">
-                            <label class="form-label fw-semibold">Foto del Producto (PNG / JPG)</label>
-                            <input type="file" accept="image/png, image/jpeg" class="form-control">
+                            <label class="form-label fw-semibold">Descripción / Detalles</label>
+                            <textarea name="description" class="form-control" rows="1" placeholder="Detalles u observaciones del producto..."></textarea>
                         </div>
-                        <button type="submit" class="btn btn-primary w-100">Guardar Producto</button>
+
+                        <!-- Presentación y Compra -->
+                        <div class="card bg-light border-0 mb-3 p-3">
+                            <h6 class="fw-bold text-primary mb-2"><i class="bi bi-box2-fill me-1"></i> Configuración de Presentación y Compra</h6>
+                            <div class="row g-2 mb-2">
+                                <div class="col-md-4">
+                                    <label class="form-label small fw-semibold mb-1">Presentación de Compra</label>
+                                    <select name="presentation" class="form-select form-select-sm" onchange="User.calcProductModalPrices('new')">
+                                        <option value="Unidad">Individual / Unidad</option>
+                                        <option value="Paquete">Paquete</option>
+                                        <option value="Bulto" selected>Bulto</option>
+                                        <option value="Paca">Paca</option>
+                                        <option value="Caja">Caja</option>
+                                        <option value="Saco">Saco</option>
+                                        <option value="Botella">Botella</option>
+                                        <option value="Lata">Lata</option>
+                                        <option value="Garrafa">Garrafa</option>
+                                        <option value="Kilo">Kilo</option>
+                                        <option value="Litro">Litro</option>
+                                        <option value="Otro">Otro</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="form-label small fw-semibold mb-1">Unds. por Empaque / Bulto</label>
+                                    <input type="number" name="units_per_package" class="form-control form-control-sm" value="24" min="1" oninput="User.calcProductModalPrices('new')" title="Cantidad de unidades contenidas en la presentación de compra">
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="form-label small fw-semibold mb-1">Moneda de Compra</label>
+                                    <select name="purchase_currency" class="form-select form-select-sm" onchange="User.calcProductModalPrices('new')">
+                                        <option value="USD" selected>$ Dólares (USD)</option>
+                                        <option value="VES">Bs. Bolívares (VES)</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="row g-2 align-items-center">
+                                <div class="col-md-6">
+                                    <label class="form-label small fw-semibold mb-1">Costo de Compra (de la Presentación)</label>
+                                    <input type="number" step="0.01" min="0" name="package_purchase_price" class="form-control form-control-sm" value="0.00" oninput="User.calcProductModalPrices('new')" required>
+                                    <input type="hidden" name="purchase_price" value="0.00">
+                                </div>
+                                <div class="col-md-6">
+                                    <small class="text-muted d-block mt-3"><i class="bi bi-info-circle me-1"></i> El sistema dividirá el precio entre las unidades y convertirá automáticamente a USD a Tasa BCV.</small>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Precios de Venta -->
+                        <div class="card border-0 shadow-sm mb-3 p-3">
+                            <h6 class="fw-bold text-success mb-2"><i class="bi bi-tag-fill me-1"></i> Precios y Modalidades de Venta</h6>
+                            <div class="row g-2 mb-2">
+                                <div class="col-md-4">
+                                    <label class="form-label small fw-semibold mb-1">Precio Venta Detal ($ USD)</label>
+                                    <input type="number" step="0.01" min="0" name="sale_price" class="form-control form-control-sm" value="0.00" oninput="User.calcProductModalPrices('new')" required>
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="form-label small fw-semibold mb-1">Modalidad de Venta</label>
+                                    <select name="sell_type" class="form-select form-select-sm" onchange="document.getElementById('wholesaleFieldsNew').style.display = (this.value === 'wholesale' || this.value === 'both') ? 'flex' : 'none'; User.calcProductModalPrices('new')">
+                                        <option value="retail" selected>Solo a Detal</option>
+                                        <option value="wholesale">Solo al Mayor</option>
+                                        <option value="both">Detal y Mayor</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="form-label small fw-semibold mb-1">Foto del Producto (Opcional)</label>
+                                    <input type="file" accept="image/png, image/jpeg" class="form-control form-control-sm">
+                                </div>
+                            </div>
+                            <!-- Campos Mayorista Dinámicos -->
+                            <div class="row g-2 bg-body-tertiary p-2 rounded border" id="wholesaleFieldsNew" style="display:none;">
+                                <div class="col-md-6">
+                                    <label class="form-label small fw-semibold mb-1 text-info"><i class="bi bi-box2-heart-fill me-1"></i> Precio Venta Mayor ($ USD)</label>
+                                    <input type="number" step="0.01" min="0" name="wholesale_price" class="form-control form-control-sm" value="0.00" oninput="User.calcProductModalPrices('new')">
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label small fw-semibold mb-1">Cant. Mínima para Mayor (Unds.)</label>
+                                    <input type="number" name="wholesale_min_qty" class="form-control form-control-sm" value="12" min="1" oninput="User.calcProductModalPrices('new')">
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Contenedor Resumen de Cálculo Automático -->
+                        <div id="newProductCalcSummary"></div>
+
+                        <button type="submit" class="btn btn-primary w-100 py-2 mt-3 fw-bold fs-6"><i class="bi bi-check-lg me-1"></i> Guardar Producto en Inventario</button>
                     </form>
                 </div>
             </div>
@@ -592,7 +638,7 @@
 
     <!-- 12. MODAL EDITAR PRODUCTO -->
     <div class="modal fade" id="modalEditProduct" tabindex="-1" aria-hidden="true">
-        <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-dialog modal-dialog-centered modal-lg">
             <div class="modal-content">
                 <div class="modal-header bg-warning text-dark">
                     <h5 class="modal-title fw-bold"><i class="bi bi-pencil-square me-2"></i> Editar Producto</h5>
@@ -601,64 +647,109 @@
                 <div class="modal-body">
                     <form onsubmit="User.saveEditProduct(event)">
                         <input type="hidden" name="id" id="editProductId">
-                        <div class="mb-3">
-                            <label class="form-label fw-semibold">Nombre del Producto</label>
-                            <input type="text" name="name" id="editProductName" class="form-control" required>
+                        
+                        <div class="row g-2 mb-3">
+                            <div class="col-md-6">
+                                <label class="form-label fw-semibold">Nombre del Producto</label>
+                                <input type="text" name="name" id="editProductName" class="form-control" required>
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label fw-semibold">Categoría</label>
+                                <input type="text" name="category" id="editProductCategory" class="form-control" placeholder="Ej: Bebidas">
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label fw-semibold">Stock Actual (Unds.)</label>
+                                <input type="number" name="quantity" id="editProductQuantity" class="form-control" min="0" required>
+                            </div>
                         </div>
+
                         <div class="mb-3">
                             <label class="form-label fw-semibold">Descripción / Detalles</label>
                             <input type="text" name="description" id="editProductDescription" class="form-control">
                         </div>
-                        <div class="row g-2 mb-3">
-                            <div class="col-md-6">
-                                <label class="form-label fw-semibold">Categoría</label>
-                                <input type="text" name="category" id="editProductCategory" class="form-control" placeholder="Ej: Bebidas, Panes">
+
+                        <!-- Presentación y Compra -->
+                        <div class="card bg-light border-0 mb-3 p-3">
+                            <h6 class="fw-bold text-primary mb-2"><i class="bi bi-box2-fill me-1"></i> Configuración de Presentación y Compra</h6>
+                            <div class="row g-2 mb-2">
+                                <div class="col-md-4">
+                                    <label class="form-label small fw-semibold mb-1">Presentación de Compra</label>
+                                    <select name="presentation" id="editProductPresentation" class="form-select form-select-sm" onchange="User.calcProductModalPrices('edit')">
+                                        <option value="Unidad">Individual / Unidad</option>
+                                        <option value="Paquete">Paquete</option>
+                                        <option value="Bulto">Bulto</option>
+                                        <option value="Paca">Paca</option>
+                                        <option value="Caja">Caja</option>
+                                        <option value="Saco">Saco</option>
+                                        <option value="Botella">Botella</option>
+                                        <option value="Lata">Lata</option>
+                                        <option value="Garrafa">Garrafa</option>
+                                        <option value="Kilo">Kilo</option>
+                                        <option value="Litro">Litro</option>
+                                        <option value="Otro">Otro</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="form-label small fw-semibold mb-1">Unds. por Empaque / Bulto</label>
+                                    <input type="number" name="units_per_package" id="editProductUnitsPerPkg" class="form-control form-control-sm" value="1" min="1" oninput="User.calcProductModalPrices('edit')">
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="form-label small fw-semibold mb-1">Moneda de Compra</label>
+                                    <select name="purchase_currency" id="editProductPurchaseCurrency" class="form-select form-select-sm" onchange="User.calcProductModalPrices('edit')">
+                                        <option value="USD">$ Dólares (USD)</option>
+                                        <option value="VES">Bs. Bolívares (VES)</option>
+                                    </select>
+                                </div>
                             </div>
-                            <div class="col-md-6">
-                                <label class="form-label fw-semibold">Stock (Cantidad)</label>
-                                <input type="number" name="quantity" id="editProductQuantity" class="form-control" min="0" required>
+                            <div class="row g-2 align-items-center">
+                                <div class="col-md-6">
+                                    <label class="form-label small fw-semibold mb-1">Costo de Compra (de la Presentación)</label>
+                                    <input type="number" step="0.01" min="0" name="package_purchase_price" id="editProductPackagePurchasePrice" class="form-control form-control-sm" value="0.00" oninput="User.calcProductModalPrices('edit')" required>
+                                    <input type="hidden" name="purchase_price" id="editProductPurchasePrice">
+                                </div>
+                                <div class="col-md-6">
+                                    <small class="text-muted d-block mt-3"><i class="bi bi-info-circle me-1"></i> Al cambiar el precio de empaque o moneda, el costo unitario se recalcula automáticamente.</small>
+                                </div>
                             </div>
                         </div>
-                        <div class="row g-2 mb-3">
-                            <div class="col-md-6">
-                                <label class="form-label fw-semibold">Precio Compra ($)</label>
-                                <input type="number" step="0.01" name="purchase_price" id="editProductPurchasePrice" class="form-control" required>
+
+                        <!-- Precios de Venta -->
+                        <div class="card border-0 shadow-sm mb-3 p-3">
+                            <h6 class="fw-bold text-success mb-2"><i class="bi bi-tag-fill me-1"></i> Precios y Modalidades de Venta</h6>
+                            <div class="row g-2 mb-2">
+                                <div class="col-md-4">
+                                    <label class="form-label small fw-semibold mb-1">Precio Venta Detal ($ USD)</label>
+                                    <input type="number" step="0.01" min="0" name="sale_price" id="editProductSalePrice" class="form-control form-control-sm" required oninput="User.calcProductModalPrices('edit')">
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="form-label small fw-semibold mb-1">Modalidad de Venta</label>
+                                    <select name="sell_type" id="editProductSellType" class="form-select form-select-sm" onchange="document.getElementById('wholesaleFieldsEdit').style.display = (this.value === 'wholesale' || this.value === 'both') ? 'flex' : 'none'; User.calcProductModalPrices('edit')">
+                                        <option value="retail">Solo a Detal</option>
+                                        <option value="wholesale">Solo al Mayor</option>
+                                        <option value="both">Detal y Mayor</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="form-label small fw-semibold mb-1">Cambiar Imagen (Opcional)</label>
+                                    <input type="file" class="form-control form-control-sm" accept="image/png, image/jpeg">
+                                </div>
                             </div>
-                            <div class="col-md-6">
-                                <label class="form-label fw-semibold">Precio Venta ($)</label>
-                                <input type="number" step="0.01" name="sale_price" id="editProductSalePrice" class="form-control" required>
-                            </div>
-                        </div>
-                        <!-- Configuración Venta Mayor / Detal (Editar) -->
-                        <div class="row g-2 mb-3">
-                            <div class="col-md-4">
-                                <label class="form-label fw-semibold">Tipo de Venta</label>
-                                <select name="sell_type" id="editProductSellType" class="form-select" onchange="document.getElementById('wholesaleFieldsEdit').style.display = this.value === 'wholesale' || this.value === 'both' ? 'flex' : 'none'">
-                                    <option value="retail">Solo Detal</option>
-                                    <option value="wholesale">Solo al Mayor</option>
-                                    <option value="both">Detal y Mayor</option>
-                                </select>
-                            </div>
-                            <div class="col-md-4">
-                                <label class="form-label fw-semibold">Und. por Bulto/Paquete</label>
-                                <input type="number" name="units_per_package" id="editProductUnitsPerPkg" class="form-control" value="1" min="1">
-                            </div>
-                        </div>
-                        <div class="row g-2 mb-3" id="wholesaleFieldsEdit" style="display:none;">
-                            <div class="col-md-6">
-                                <label class="form-label fw-semibold"><i class="bi bi-box2-heart me-1"></i> Precio Mayor ($)</label>
-                                <input type="number" step="0.01" name="wholesale_price" id="editProductWholesalePrice" class="form-control" value="0.00">
-                            </div>
-                            <div class="col-md-6">
-                                <label class="form-label fw-semibold">Cant. Mínima para Mayor</label>
-                                <input type="number" name="wholesale_min_qty" id="editProductWholesaleMinQty" class="form-control" value="1" min="1">
+                            <div class="row g-2 bg-body-tertiary p-2 rounded border" id="wholesaleFieldsEdit" style="display:none;">
+                                <div class="col-md-6">
+                                    <label class="form-label small fw-semibold mb-1 text-info"><i class="bi bi-box2-heart-fill me-1"></i> Precio Venta Mayor ($ USD)</label>
+                                    <input type="number" step="0.01" min="0" name="wholesale_price" id="editProductWholesalePrice" class="form-control form-control-sm" value="0.00" oninput="User.calcProductModalPrices('edit')">
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label small fw-semibold mb-1">Cant. Mínima para Mayor (Unds.)</label>
+                                    <input type="number" name="wholesale_min_qty" id="editProductWholesaleMinQty" class="form-control form-control-sm" value="1" min="1" oninput="User.calcProductModalPrices('edit')">
+                                </div>
                             </div>
                         </div>
-                        <div class="mb-3">
-                            <label class="form-label fw-semibold">Cambiar Imagen (Opcional)</label>
-                            <input type="file" class="form-control" accept="image/png, image/jpeg">
-                        </div>
-                        <button type="submit" class="btn btn-warning w-100 py-2 fw-bold"><i class="bi bi-save me-1"></i> Guardar Cambios del Producto</button>
+
+                        <!-- Contenedor Resumen de Cálculo Automático -->
+                        <div id="editProductCalcSummary"></div>
+
+                        <button type="submit" class="btn btn-warning w-100 py-2 mt-3 fw-bold fs-6"><i class="bi bi-save me-1"></i> Guardar Cambios del Producto</button>
                     </form>
                 </div>
             </div>
@@ -1319,15 +1410,15 @@
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script>
 
     <!-- Scripts del Sistema -->
-    <script src="./js/config.js?v=1.9.0"></script>
-    <script src="./js/db.js?v=1.9.0"></script>
-    <script src="./js/storage.js?v=1.9.0"></script>
-    <script src="./js/pdf_reports.js?v=1.9.0"></script>
-    <script src="./js/import_export.js?v=1.9.0"></script>
-    <script src="./js/auth.js?v=1.9.0"></script>
-    <script src="./js/admin.js?v=1.9.0"></script>
-    <script src="./js/user.js?v=1.9.0"></script>
-    <script src="./js/presets.js?v=1.9.0"></script>
-    <script src="./js/app.js?v=1.9.0"></script>
+    <script src="./js/config.js?v=1.9.5"></script>
+    <script src="./js/db.js?v=1.9.5"></script>
+    <script src="./js/storage.js?v=1.9.5"></script>
+    <script src="./js/pdf_reports.js?v=1.9.5"></script>
+    <script src="./js/import_export.js?v=1.9.5"></script>
+    <script src="./js/auth.js?v=1.9.5"></script>
+    <script src="./js/admin.js?v=1.9.5"></script>
+    <script src="./js/user.js?v=1.9.5"></script>
+    <script src="./js/presets.js?v=1.9.5"></script>
+    <script src="./js/app.js?v=1.9.5"></script>
 </body>
 </html>

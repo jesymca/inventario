@@ -90,7 +90,7 @@ class PDFReportGenerator {
 
         this.addHeader(doc, "REPORTE DE INVENTARIO Y STOCK DE PRODUCTOS", businessParam);
 
-        const tableColumn = ["#", "Producto", "Categoría", "Stock", "P. Compra ($)", "P. Venta ($)", "Valor Total ($)"];
+        const tableColumn = ["#", "Producto", "Categoría", "Presentación", "Stock", "P. Compra ($)", "P. Venta ($)", "Valor Total ($)"];
         const tableRows = [];
 
         let totalStock = 0;
@@ -101,6 +101,8 @@ class PDFReportGenerator {
             const purchasePrice = Number(p.purchase_price) || 0;
             const salePrice = Number(p.sale_price) || 0;
             const rowValuation = stock * salePrice;
+            const presentation = p.presentation || "Unidad";
+            const pkgInfo = (p.units_per_package && p.units_per_package > 1) ? ` (${p.units_per_package} und/b)` : '';
 
             totalStock += stock;
             totalValuation += rowValuation;
@@ -109,6 +111,7 @@ class PDFReportGenerator {
                 index + 1,
                 p.name,
                 p.category || "General",
+                `${presentation}${pkgInfo}`,
                 stock,
                 `$${purchasePrice.toFixed(2)}`,
                 `$${salePrice.toFixed(2)}`,
@@ -120,6 +123,7 @@ class PDFReportGenerator {
         tableRows.push([
             "",
             "TOTALES GENERALES",
+            "",
             "",
             totalStock,
             "",

@@ -66,19 +66,23 @@ class DatabaseManager {
             this.setLocalRecord("users", adminUser);
         }
 
-        // Migración v1.9.0: Agregar columnas wholesale a productos existentes en localStorage
+        // Migración v1.9.0: Agregar columnas wholesale y presentación a productos existentes en localStorage
         const existingProducts = this.getLocalTable("products");
-        if (existingProducts.length > 0 && existingProducts[0].sell_type === undefined) {
+        if (existingProducts.length > 0) {
+            let updated = false;
             existingProducts.forEach(p => {
-                if (p.sell_type === undefined) p.sell_type = 'retail';
-                if (p.wholesale_price === undefined) p.wholesale_price = 0;
-                if (p.wholesale_min_qty === undefined) p.wholesale_min_qty = 1;
-                if (p.units_per_package === undefined) p.units_per_package = 1;
+                if (p.sell_type === undefined) { p.sell_type = 'retail'; updated = true; }
+                if (p.wholesale_price === undefined) { p.wholesale_price = 0; updated = true; }
+                if (p.wholesale_min_qty === undefined) { p.wholesale_min_qty = 1; updated = true; }
+                if (p.units_per_package === undefined) { p.units_per_package = 1; updated = true; }
+                if (p.presentation === undefined) { p.presentation = 'Unidad'; updated = true; }
+                if (p.purchase_currency === undefined) { p.purchase_currency = 'USD'; updated = true; }
+                if (p.package_purchase_price === undefined) { p.package_purchase_price = p.purchase_price || 0; updated = true; }
             });
-            this.setLocalTable("products", existingProducts);
+            if (updated) this.setLocalTable("products", existingProducts);
         }
 
-        // Migración Turso v1.9.0: agregar columnas wholesale
+        // Migración Turso v1.9.0: agregar columnas wholesale y presentación
         this.runMigrations();
     }
 
@@ -90,7 +94,10 @@ class DatabaseManager {
             "ALTER TABLE products ADD COLUMN sell_type TEXT DEFAULT 'retail'",
             "ALTER TABLE products ADD COLUMN wholesale_price REAL DEFAULT 0",
             "ALTER TABLE products ADD COLUMN wholesale_min_qty INTEGER DEFAULT 1",
-            "ALTER TABLE products ADD COLUMN units_per_package INTEGER DEFAULT 1"
+            "ALTER TABLE products ADD COLUMN units_per_package INTEGER DEFAULT 1",
+            "ALTER TABLE products ADD COLUMN presentation TEXT DEFAULT 'Unidad'",
+            "ALTER TABLE products ADD COLUMN purchase_currency TEXT DEFAULT 'USD'",
+            "ALTER TABLE products ADD COLUMN package_purchase_price REAL DEFAULT 0"
         ];
         for (const sql of migrations) {
             try {

@@ -710,27 +710,156 @@ class UserManager {
             return;
         }
 
-        tbody.innerHTML = products.map(p => `
+        tbody.innerHTML = products.map(p => {
+            const bcvRate = CONFIG.DEFAULT_BCV_RATE || 1;
+            const unitCost = Number(p.purchase_price) || 0;
+            const unitCostVes = unitCost * bcvRate;
+            const salePrice = Number(p.sale_price) || 0;
+            const salePriceVes = salePrice * bcvRate;
+            const wholesalePrice = Number(p.wholesale_price) || 0;
+            const wholesalePriceVes = wholesalePrice * bcvRate;
+            const presentationText = p.presentation ? p.presentation : 'Unidad';
+            const pkgInfo = (p.units_per_package && p.units_per_package > 1) ? ` (${p.units_per_package} und/bulto)` : '';
+
+            return `
             <tr>
                 <td>
                     ${p.image_url ? `<img src="${p.image_url}" class="rounded" style="width: 40px; height: 40px; object-fit: cover;">` : '<div class="bg-secondary text-white rounded d-flex align-items-center justify-content-center" style="width:40px;height:40px;"><i class="bi bi-box"></i></div>'}
                 </td>
-                <td><strong>${p.name}</strong><br><small class="text-muted">${p.description || ''}</small></td>
-                <td><span class="badge bg-light text-dark border">${p.category || 'General'}</span></td>
-                <td><span class="badge ${p.quantity > 5 ? 'bg-success' : 'bg-danger'} fs-6">${p.quantity}</span></td>
-                <td>$${Number(p.purchase_price).toFixed(2)}</td>
-                <td><strong class="text-primary">$${Number(p.sale_price).toFixed(2)}</strong></td>
+                <td>
+                    <strong>${p.name}</strong>
+                    <br><small class="text-muted">${p.description || ''}</small>
+                </td>
+                <td>
+                    <span class="badge bg-light text-dark border">${p.category || 'General'}</span>
+                    <br><span class="badge bg-info text-dark mt-1"><i class="bi bi-box2 me-1"></i>${presentationText}${pkgInfo}</span>
+                </td>
+                <td>
+                    <span class="badge ${p.quantity > 5 ? 'bg-success' : 'bg-danger'} fs-6">${p.quantity} unds</span>
+                    ${p.units_per_package > 1 ? `<br><small class="text-muted">~ ${(p.quantity / p.units_per_package).toFixed(1)} ${presentationText}s</small>` : ''}
+                </td>
+                <td>
+                    <span class="fw-semibold">$${unitCost.toFixed(2)} USD</span>
+                    <br><small class="text-muted">Bs. ${unitCostVes.toFixed(2)}</small>
+                </td>
+                <td>
+                    <strong class="text-primary">$${salePrice.toFixed(2)} USD</strong>
+                    <br><small class="text-muted">Bs. ${salePriceVes.toFixed(2)}</small>
+                    ${(p.sell_type === 'wholesale' || p.sell_type === 'both') && wholesalePrice > 0 ? `
+                    <div class="mt-1"><span class="badge bg-info text-dark" title="Precio a partir de ${p.wholesale_min_qty || 1} unidades"><i class="bi bi-tag-fill me-1"></i>Mayor: $${wholesalePrice.toFixed(2)} (≥${p.wholesale_min_qty || 1})</span></div>
+                    ` : ''}
+                </td>
                 <td class="text-end">
                     <button class="btn btn-sm btn-outline-primary me-1" onclick="User.openEditProductModal('${p.id}')" title="Editar Producto"><i class="bi bi-pencil"></i></button>
                     <button class="btn btn-sm btn-outline-danger" onclick="User.deleteProduct('${p.id}')" title="Eliminar Producto"><i class="bi bi-trash"></i></button>
                 </td>
-            </tr>
-        `).join("");
+            </tr>`;
+        }).join("");
+    }
+
+    /**
+     * Cálculo automático en vivo para los modals de Producto (Nuevo y Editar)
+     */
+    calcProductModalPrices(prefix = 'new') {
+        const formId = prefix === 'new' ? 'modalNewProduct' : 'modalEditProduct';
+        const modalEl = document.getElementById(formId);
+        if (!modalEl) return;
+        const form = modalEl.querySelector('form');
+        if (!form) return;
+
+        const bcvRate = CONFIG.DEFAULT_BCV_RATE || 1;
+
+        const presentationSelect = form.querySelector('[name="presentation"]');
+        const presentation = presentationSelect ? presentationSelect.value : 'Unidad';
+
+        const unitsInput = form.querySelector('[name="units_per_package"]');
+        let unitsPerPkg = parseInt(unitsInput ? unitsInput.value : 1) || 1;
+        if (presentation === 'Unidad' && unitsInput) {
+            unitsPerPkg = 1;
+        }
+
+        const currencySelect = form.querySelector('[name="purchase_currency"]');
+        const currency = currencySelect ? currencySelect.value : 'USD';
+
+        const pkgCostInput = form.querySelector('[name="package_purchase_price"]');
+        const rawPkgCost = parseFloat(pkgCostInput ? pkgCostInput.value : 0) || 0;
+
+        // Costo del empaque en USD y VES
+        const pkgCostUsd = currency === 'VES' ? (rawPkgCost / bcvRate) : rawPkgCost;
+        const pkgCostVes = pkgCostUsd * bcvRate;
+
+        // Costo unitario individual calculado en USD y VES
+        const unitCostUsd = unitsPerPkg > 0 ? (pkgCostUsd / unitsPerPkg) : 0;
+        const unitCostVes = unitCostUsd * bcvRate;
+
+        // Asignar al campo oculto purchase_price el costo unitario en USD
+        const unitCostInput = form.querySelector('[name="purchase_price"]');
+        if (unitCostInput) {
+            unitCostInput.value = unitCostUsd.toFixed(4);
+        }
+
+        // Precios de Venta
+        const salePriceInput = form.querySelector('[name="sale_price"]');
+        const salePriceUsd = parseFloat(salePriceInput ? salePriceInput.value : 0) || 0;
+        const salePriceVes = salePriceUsd * bcvRate;
+        const retailMargin = unitCostUsd > 0 ? (((salePriceUsd - unitCostUsd) / unitCostUsd) * 100) : 0;
+
+        const sellTypeSelect = form.querySelector('[name="sell_type"]');
+        const sellType = sellTypeSelect ? sellTypeSelect.value : 'retail';
+
+        const wholesalePriceInput = form.querySelector('[name="wholesale_price"]');
+        const wholesalePriceUsd = parseFloat(wholesalePriceInput ? wholesalePriceInput.value : 0) || 0;
+        const wholesalePriceVes = wholesalePriceUsd * bcvRate;
+        const wholesaleMargin = unitCostUsd > 0 ? (((wholesalePriceUsd - unitCostUsd) / unitCostUsd) * 100) : 0;
+
+        // Renderizar Tarjeta de Resumen Dinámico
+        const summaryContainer = document.getElementById(`${prefix}ProductCalcSummary`);
+        if (summaryContainer) {
+            summaryContainer.innerHTML = `
+                <div class="card bg-body-tertiary border shadow-sm p-3 mt-2 rounded-3">
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <span class="fw-bold text-primary small"><i class="bi bi-calculator me-1"></i> Resumen de Cálculo Automático</span>
+                        <span class="badge bg-secondary">Tasa BCV: Bs. ${bcvRate.toFixed(2)}</span>
+                    </div>
+                    <div class="row g-2 small">
+                        <div class="col-6">
+                            <div class="p-2 border rounded bg-white dark:bg-dark">
+                                <div class="text-muted fw-semibold">Costo Empaque (${presentation})</div>
+                                <div class="fw-bold text-dark">$${pkgCostUsd.toFixed(2)} USD <small class="text-muted">(Bs. ${pkgCostVes.toFixed(2)})</small></div>
+                                ${unitsPerPkg > 1 ? `<small class="text-primary d-block mt-1"><i class="bi bi-boxes me-1"></i> Contiene ${unitsPerPkg} unidades</small>` : ''}
+                            </div>
+                        </div>
+                        <div class="col-6">
+                            <div class="p-2 border rounded bg-white dark:bg-dark">
+                                <div class="text-muted fw-semibold">Costo Unitario Calculado</div>
+                                <div class="fw-bold text-success">$${unitCostUsd.toFixed(2)} USD <small class="text-muted">(Bs. ${unitCostVes.toFixed(2)})</small></div>
+                                <small class="text-muted d-block mt-1">Costo individual por unidad</small>
+                            </div>
+                        </div>
+                        <div class="col-6">
+                            <div class="p-2 border rounded bg-white dark:bg-dark">
+                                <div class="text-muted fw-semibold">Venta Detal (${salePriceUsd > 0 ? '$' + salePriceUsd.toFixed(2) : '$0.00'})</div>
+                                <div class="fw-bold text-primary">Bs. ${salePriceVes.toFixed(2)} <span class="badge ${retailMargin >= 0 ? 'bg-success' : 'bg-danger'} ms-1">${retailMargin >= 0 ? '+' : ''}${retailMargin.toFixed(1)}%</span></div>
+                            </div>
+                        </div>
+                        ${(sellType === 'wholesale' || sellType === 'both') ? `
+                        <div class="col-6">
+                            <div class="p-2 border rounded bg-white dark:bg-dark">
+                                <div class="text-muted fw-semibold">Venta Mayor (${wholesalePriceUsd > 0 ? '$' + wholesalePriceUsd.toFixed(2) : '$0.00'})</div>
+                                <div class="fw-bold text-info">Bs. ${wholesalePriceVes.toFixed(2)} <span class="badge ${wholesaleMargin >= 0 ? 'bg-info text-dark' : 'bg-danger'} ms-1">${wholesaleMargin >= 0 ? '+' : ''}${wholesaleMargin.toFixed(1)}%</span></div>
+                            </div>
+                        </div>
+                        ` : ''}
+                    </div>
+                </div>
+            `;
+        }
     }
 
     async openNewProductModal() {
         const modal = new bootstrap.Modal(document.getElementById("modalNewProduct"));
         modal.show();
+        setTimeout(() => this.calcProductModalPrices('new'), 200);
     }
 
     async saveNewProduct(event) {
@@ -743,26 +872,38 @@ class UserManager {
             imageUrl = await Storage.uploadImage(fileInput.files[0]);
         }
 
+        const bcvRate = CONFIG.DEFAULT_BCV_RATE || 1;
+        const presentation = form.presentation ? form.presentation.value : 'Unidad';
+        const unitsPerPkg = parseInt(form.units_per_package ? form.units_per_package.value : 1) || 1;
+        const currency = form.purchase_currency ? form.purchase_currency.value : 'USD';
+        const rawPkgCost = parseFloat(form.package_purchase_price ? form.package_purchase_price.value : 0) || 0;
+
+        const pkgCostUsd = currency === 'VES' ? (rawPkgCost / bcvRate) : rawPkgCost;
+        const unitCostUsd = unitsPerPkg > 0 ? (pkgCostUsd / unitsPerPkg) : 0;
+
         const newProd = {
             id: "prod_" + Date.now(),
             business_id: Auth.currentBusiness.id,
             name: form.name.value,
-            description: form.description.value,
+            description: form.description ? form.description.value : '',
             image_url: imageUrl,
             quantity: parseInt(form.quantity.value || 0),
-            purchase_price: parseFloat(form.purchase_price.value || 0),
-            sale_price: parseFloat(form.sale_price.value || 0),
-            category: form.category.value || "General",
+            category: form.category ? form.category.value || "General" : "General",
+            presentation: presentation,
+            units_per_package: unitsPerPkg,
+            purchase_currency: currency,
+            package_purchase_price: pkgCostUsd,
+            purchase_price: unitCostUsd,
+            sale_price: parseFloat(form.sale_price ? form.sale_price.value : 0),
             sell_type: form.sell_type ? form.sell_type.value : 'retail',
             wholesale_price: parseFloat(form.wholesale_price ? form.wholesale_price.value : 0),
             wholesale_min_qty: parseInt(form.wholesale_min_qty ? form.wholesale_min_qty.value : 1),
-            units_per_package: parseInt(form.units_per_package ? form.units_per_package.value : 1),
             created_at: new Date().toISOString()
         };
 
         await DB.query(
-            `INSERT INTO products (id, business_id, name, description, image_url, quantity, purchase_price, sale_price, category, sell_type, wholesale_price, wholesale_min_qty, units_per_package) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-            [newProd.id, newProd.business_id, newProd.name, newProd.description, newProd.image_url, newProd.quantity, newProd.purchase_price, newProd.sale_price, newProd.category, newProd.sell_type, newProd.wholesale_price, newProd.wholesale_min_qty, newProd.units_per_package]
+            `INSERT INTO products (id, business_id, name, description, image_url, quantity, category, presentation, units_per_package, purchase_currency, package_purchase_price, purchase_price, sale_price, sell_type, wholesale_price, wholesale_min_qty) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            [newProd.id, newProd.business_id, newProd.name, newProd.description, newProd.image_url, newProd.quantity, newProd.category, newProd.presentation, newProd.units_per_package, newProd.purchase_currency, newProd.package_purchase_price, newProd.purchase_price, newProd.sale_price, newProd.sell_type, newProd.wholesale_price, newProd.wholesale_min_qty]
         );
         DB.setLocalRecord("products", newProd);
 
@@ -781,20 +922,37 @@ class UserManager {
         document.getElementById("editProductDescription").value = prod.description || "";
         document.getElementById("editProductCategory").value = prod.category || "General";
         document.getElementById("editProductQuantity").value = prod.quantity || 0;
-        document.getElementById("editProductPurchasePrice").value = prod.purchase_price || 0;
-        document.getElementById("editProductSalePrice").value = prod.sale_price || 0;
-        // Wholesale fields
-        const sellTypeEl = document.getElementById("editProductSellType");
-        if (sellTypeEl) sellTypeEl.value = prod.sell_type || 'retail';
+
+        const presEl = document.getElementById("editProductPresentation");
+        if (presEl) presEl.value = prod.presentation || 'Unidad';
+
         const unitsEl = document.getElementById("editProductUnitsPerPkg");
         if (unitsEl) unitsEl.value = prod.units_per_package || 1;
+
+        const currEl = document.getElementById("editProductPurchaseCurrency");
+        if (currEl) currEl.value = prod.purchase_currency || 'USD';
+
+        const pkgPriceEl = document.getElementById("editProductPackagePurchasePrice");
+        if (pkgPriceEl) pkgPriceEl.value = (prod.package_purchase_price !== undefined ? prod.package_purchase_price : prod.purchase_price) || 0;
+
+        const unitCostEl = document.getElementById("editProductPurchasePrice");
+        if (unitCostEl) unitCostEl.value = prod.purchase_price || 0;
+
+        document.getElementById("editProductSalePrice").value = prod.sale_price || 0;
+
+        const sellTypeEl = document.getElementById("editProductSellType");
+        if (sellTypeEl) sellTypeEl.value = prod.sell_type || 'retail';
+
         const wpEl = document.getElementById("editProductWholesalePrice");
         if (wpEl) wpEl.value = prod.wholesale_price || 0;
+
         const wmEl = document.getElementById("editProductWholesaleMinQty");
         if (wmEl) wmEl.value = prod.wholesale_min_qty || 1;
-        // Show/hide wholesale fields
+
         const wsFields = document.getElementById("wholesaleFieldsEdit");
         if (wsFields) wsFields.style.display = (prod.sell_type === 'wholesale' || prod.sell_type === 'both') ? 'flex' : 'none';
+
+        this.calcProductModalPrices('edit');
 
         const modal = new bootstrap.Modal(document.getElementById("modalEditProduct"));
         modal.show();
@@ -815,23 +973,35 @@ class UserManager {
         const idx = products.findIndex(p => p.id === productId);
         if (idx < 0) return alert("Producto no encontrado.");
 
+        const bcvRate = CONFIG.DEFAULT_BCV_RATE || 1;
+        const presentation = form.presentation ? form.presentation.value : 'Unidad';
+        const unitsPerPkg = parseInt(form.units_per_package ? form.units_per_package.value : 1) || 1;
+        const currency = form.purchase_currency ? form.purchase_currency.value : 'USD';
+        const rawPkgCost = parseFloat(form.package_purchase_price ? form.package_purchase_price.value : 0) || 0;
+
+        const pkgCostUsd = currency === 'VES' ? (rawPkgCost / bcvRate) : rawPkgCost;
+        const unitCostUsd = unitsPerPkg > 0 ? (pkgCostUsd / unitsPerPkg) : 0;
+
         products[idx].name = form.name.value;
-        products[idx].description = form.description.value;
-        products[idx].category = form.category.value || "General";
+        products[idx].description = form.description ? form.description.value : '';
+        products[idx].category = form.category ? form.category.value || "General" : "General";
         products[idx].quantity = parseInt(form.quantity.value || 0);
-        products[idx].purchase_price = parseFloat(form.purchase_price.value || 0);
-        products[idx].sale_price = parseFloat(form.sale_price.value || 0);
+        products[idx].presentation = presentation;
+        products[idx].units_per_package = unitsPerPkg;
+        products[idx].purchase_currency = currency;
+        products[idx].package_purchase_price = pkgCostUsd;
+        products[idx].purchase_price = unitCostUsd;
+        products[idx].sale_price = parseFloat(form.sale_price ? form.sale_price.value : 0);
         products[idx].sell_type = form.sell_type ? form.sell_type.value : (products[idx].sell_type || 'retail');
         products[idx].wholesale_price = parseFloat(form.wholesale_price ? form.wholesale_price.value : (products[idx].wholesale_price || 0));
         products[idx].wholesale_min_qty = parseInt(form.wholesale_min_qty ? form.wholesale_min_qty.value : (products[idx].wholesale_min_qty || 1));
-        products[idx].units_per_package = parseInt(form.units_per_package ? form.units_per_package.value : (products[idx].units_per_package || 1));
         if (imageUrl) products[idx].image_url = imageUrl;
 
         await DB.query(
-            `UPDATE products SET name = ?, description = ?, category = ?, quantity = ?, purchase_price = ?, sale_price = ?, sell_type = ?, wholesale_price = ?, wholesale_min_qty = ?, units_per_package = ? ${imageUrl ? ', image_url = ?' : ''} WHERE id = ?`,
+            `UPDATE products SET name = ?, description = ?, category = ?, quantity = ?, presentation = ?, units_per_package = ?, purchase_currency = ?, package_purchase_price = ?, purchase_price = ?, sale_price = ?, sell_type = ?, wholesale_price = ?, wholesale_min_qty = ? ${imageUrl ? ', image_url = ?' : ''} WHERE id = ?`,
             imageUrl ? 
-            [products[idx].name, products[idx].description, products[idx].category, products[idx].quantity, products[idx].purchase_price, products[idx].sale_price, products[idx].sell_type, products[idx].wholesale_price, products[idx].wholesale_min_qty, products[idx].units_per_package, imageUrl, productId] :
-            [products[idx].name, products[idx].description, products[idx].category, products[idx].quantity, products[idx].purchase_price, products[idx].sale_price, products[idx].sell_type, products[idx].wholesale_price, products[idx].wholesale_min_qty, products[idx].units_per_package, productId]
+            [products[idx].name, products[idx].description, products[idx].category, products[idx].quantity, products[idx].presentation, products[idx].units_per_package, products[idx].purchase_currency, products[idx].package_purchase_price, products[idx].purchase_price, products[idx].sale_price, products[idx].sell_type, products[idx].wholesale_price, products[idx].wholesale_min_qty, imageUrl, productId] :
+            [products[idx].name, products[idx].description, products[idx].category, products[idx].quantity, products[idx].presentation, products[idx].units_per_package, products[idx].purchase_currency, products[idx].package_purchase_price, products[idx].purchase_price, products[idx].sale_price, products[idx].sell_type, products[idx].wholesale_price, products[idx].wholesale_min_qty, productId]
         );
         DB.setLocalTable("products", products);
 
@@ -1195,15 +1365,25 @@ class UserManager {
             return alert(`¡Stock insuficiente! Solo quedan ${prod.quantity} unidades disponibles de "${prod.name}".`);
         }
 
+        if (prod.sell_type === 'wholesale' && totalReq < (prod.wholesale_min_qty || 1)) {
+            alert(`⚠️ Este producto está configurado para VENTA SOLO AL MAYOR (Mínimo ${prod.wholesale_min_qty} unidades).`);
+        }
+
+        const isWholesale = (prod.sell_type === 'wholesale' || prod.sell_type === 'both') && totalReq >= (prod.wholesale_min_qty || 1) && prod.wholesale_price > 0;
+        const appliedUnitPrice = isWholesale ? prod.wholesale_price : prod.sale_price;
+
         if (existingIdx >= 0) {
-            this.saleCartItems[existingIdx].quantity += qty;
+            this.saleCartItems[existingIdx].quantity = totalReq;
+            this.saleCartItems[existingIdx].unit_price = appliedUnitPrice;
+            this.saleCartItems[existingIdx].is_wholesale = isWholesale;
         } else {
             this.saleCartItems.push({
                 product_id: prod.id,
                 name: prod.name,
-                unit_price: (prod.sell_type === 'wholesale' || prod.sell_type === 'both') && qty >= (prod.wholesale_min_qty || 999999) && prod.wholesale_price > 0 ? prod.wholesale_price : prod.sale_price,
-                quantity: qty,
-                available_stock: prod.quantity
+                unit_price: appliedUnitPrice,
+                quantity: totalReq,
+                available_stock: prod.quantity,
+                is_wholesale: isWholesale
             });
         }
 
@@ -1225,6 +1405,15 @@ class UserManager {
         }
 
         item.quantity = parsedQty;
+
+        const products = DB.getLocalTable("products");
+        const prod = products.find(p => p.id === productId);
+        if (prod) {
+            const isWholesale = (prod.sell_type === 'wholesale' || prod.sell_type === 'both') && parsedQty >= (prod.wholesale_min_qty || 1) && prod.wholesale_price > 0;
+            item.unit_price = isWholesale ? prod.wholesale_price : prod.sale_price;
+            item.is_wholesale = isWholesale;
+        }
+
         this.renderSaleCart();
     }
 
@@ -1248,9 +1437,11 @@ class UserManager {
         tbody.innerHTML = this.saleCartItems.map(item => {
             const subtotal = item.unit_price * item.quantity;
             total += subtotal;
+            const priceBadge = item.is_wholesale ? '<span class="badge bg-info text-dark ms-1">Mayor</span>' : '<span class="badge bg-light text-dark border ms-1">Detal</span>';
+
             return `
                 <tr>
-                    <td><strong>${item.name}</strong></td>
+                    <td><strong>${item.name}</strong>${priceBadge}</td>
                     <td>$${item.unit_price.toFixed(2)}</td>
                     <td>
                         <div class="input-group input-group-sm" style="width: 120px;">
@@ -1267,7 +1458,7 @@ class UserManager {
             `;
         }).join("");
 
-        if (totalText) totalText.innerText = `$${total.toFixed(2)} USD (Bs. ${(total * CONFIG.DEFAULT_BCV_RATE).toFixed(2)})`;
+        if (totalText) totalText.innerText = `$${total.toFixed(2)} USD (Bs. ${(total * (CONFIG.DEFAULT_BCV_RATE || 1)).toFixed(2)})`;
     }
 
     async saveNewSale(event) {
@@ -2151,9 +2342,10 @@ class UserManager {
                                 <th>#</th>
                                 <th>Producto</th>
                                 <th>Categoría</th>
+                                <th>Presentación</th>
                                 <th>Stock</th>
-                                <th>P. Compra ($)</th>
-                                <th>P. Venta ($)</th>
+                                <th>P. Compra Unit. ($)</th>
+                                <th>P. Venta Detal ($)</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -2162,7 +2354,8 @@ class UserManager {
                                     <td>${idx + 1}</td>
                                     <td><strong>${p.name}</strong></td>
                                     <td><span class="badge bg-secondary">${p.category || 'General'}</span></td>
-                                    <td><span class="badge ${p.quantity > 5 ? 'bg-success' : 'bg-danger'}">${p.quantity}</span></td>
+                                    <td><span class="badge bg-info text-dark">${p.presentation || 'Unidad'} ${p.units_per_package > 1 ? '(' + p.units_per_package + ' unds)' : ''}</span></td>
+                                    <td><span class="badge ${p.quantity > 5 ? 'bg-success' : 'bg-danger'}">${p.quantity} unds</span></td>
                                     <td>$${Number(p.purchase_price).toFixed(2)}</td>
                                     <td><strong class="text-primary">$${Number(p.sale_price).toFixed(2)}</strong></td>
                                 </tr>
