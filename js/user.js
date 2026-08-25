@@ -1694,6 +1694,43 @@ class UserManager {
         modal.show();
     }
 
+    async saveReportIncident(event) {
+        event.preventDefault();
+        const form = event.target;
+        const title = form.title.value.trim();
+        const description = form.description.value.trim();
+
+        if (!title || !description) {
+            AppUI.showAlert("Error", "Por favor llena todos los campos.", "warning");
+            return;
+        }
+
+        const currentUser = Auth.currentUser || {};
+        const incident = {
+            id: "inc_" + Date.now(),
+            user_id: currentUser.id || "anonymous",
+            user_email: currentUser.email || "desconocido",
+            title: title,
+            description: description,
+            status: "Pendiente",
+            created_at: new Date().toISOString()
+        };
+
+        try {
+            await DB.query(
+                `INSERT INTO incidents (id, user_id, user_email, title, description, status, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)`,
+                [incident.id, incident.user_id, incident.user_email, incident.title, incident.description, incident.status, incident.created_at]
+            );
+        } catch (e) {
+            console.warn("Incident saved to localStorage only:", e);
+        }
+
+        DB.setLocalRecord("incidents", incident);
+        bootstrap.Modal.getInstance(document.getElementById("modalReportIncident")).hide();
+        form.reset();
+        AppUI.showAlert("Incidencia Reportada", "Tu reporte ha sido enviado al administrador. Te contactaremos pronto.", "success");
+    }
+
     // --- MÓDULO REPORTES DINÁMICOS ---
     setReportDateShortcut(shortcut) {
         const startInput = document.getElementById("reportStartDate");

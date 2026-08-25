@@ -353,18 +353,25 @@ class AdminManager {
                         </div>
                         <div class="card-body">
                             <div class="row g-3">
-                                <div class="col-md-6">
+                                <div class="col-md-4">
                                     <div class="card border p-3">
                                         <h6 class="fw-bold"><i class="bi bi-database me-2"></i> Estado de la Base de Datos Turso DB</h6>
                                         <p class="small text-muted mb-2">Motor primario SQLite distribuido en la nube.</p>
                                         <div id="statusTursoDB" class="badge bg-secondary p-2">Verificando conexión...</div>
                                     </div>
                                 </div>
-                                <div class="col-md-6">
+                                <div class="col-md-4">
                                     <div class="card border p-3">
                                         <h6 class="fw-bold"><i class="bi bi-currency-dollar me-2"></i> API Tasa de Cambio (ve.dolarapi.com)</h6>
                                         <p class="small text-muted mb-2">Monitoreo en vivo de la tasa oficial BCV.</p>
                                         <div id="statusDolarAPI" class="badge bg-secondary p-2">Verificando API...</div>
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="card border p-3">
+                                        <h6 class="fw-bold"><i class="bi bi-cloud-arrow-up me-2"></i> Alojamiento de Imágenes (Cloudflare R2)</h6>
+                                        <p class="small text-muted mb-2">Servicio de almacenamiento de logos y fotos.</p>
+                                        <div id="statusR2Storage" class="badge bg-secondary p-2">Verificando servicio...</div>
                                     </div>
                                 </div>
                             </div>
@@ -408,6 +415,7 @@ class AdminManager {
         this.loadAdminProductsTable();
         this.loadAdminPaymentMethods();
         this.loadAdminIncidentsTable();
+        this.runConnectivityTests();
     }
 
     getGlobalStats() {
@@ -433,6 +441,86 @@ class AdminManager {
     filterUsers(query = "") {
         this.usersSearchQuery = query.toLowerCase().trim();
         this.loadAdminUsersTable();
+    }
+
+    filterProducts(query = "") {
+        this.productsSearchQuery = query.toLowerCase().trim();
+        this.loadAdminProductsTable();
+    }
+
+    loadAdminProductsTable() {
+        const tbody = document.getElementById("adminProductsTableBody");
+        if (!tbody) return;
+
+        let products = this.cache.products || DB.getLocalTable("products");
+        const businesses = this.cache.businesses || DB.getLocalTable("businesses");
+        const users = this.cache.users || DB.getLocalTable("users");
+
+        if (this.productsSearchQuery) {
+            const q = this.productsSearchQuery.toLowerCase();
+            products = products.filter(p => {
+                const biz = businesses.find(b => b.id === p.business_id) || {};
+                return (p.name && p.name.toLowerCase().includes(q)) ||
+                       (p.category && p.category.toLowerCase().includes(q)) ||
+                       (p.description && p.description.toLowerCase().includes(q)) ||
+                       (biz.name && biz.name.toLowerCase().includes(q));
+            });
+        }
+
+        if (products.length === 0) {
+            tbody.innerHTML = `<tr><td colspan="7" class="text-center text-muted py-4">No hay productos registrados en la plataforma.</td></tr>`;
+            return;
+        }
+
+        const bcvRate = CONFIG.DEFAULT_BCV_RATE || 36.50;
+
+        tbody.innerHTML = products.map((p, i) => {
+            const biz = businesses.find(b => b.id === p.business_id) || { name: "Comercio Desconocido" };
+            const owner = users.find(u => u.id === biz.owner_user_id || (biz.email && u.email === biz.email)) || {};
+
+            const priceUsd = parseFloat(p.sale_price || 0).toFixed(2);
+            const priceVes = (parseFloat(p.sale_price || 0) * bcvRate).toFixed(2);
+            const stock = parseInt(p.quantity || 0);
+            const stockBadge = stock > 10 
+                ? `<span class="badge bg-success">${stock}</span>` 
+                : (stock > 0 
+                    ? `<span class="badge bg-warning text-dark">${stock}</span>` 
+                    : `<span class="badge bg-danger">Agotado</span>`);
+
+            let phoneStr = biz.phone || owner.phone || "";
+            let phoneClean = phoneStr.replace(/[^0-9]/g, '');
+            if (phoneClean.startsWith('0')) phoneClean = '58' + phoneClean.substring(1);
+            if (phoneClean && !phoneClean.startsWith('58') && phoneClean.length === 10) {
+                phoneClean = '58' + phoneClean;
+            }
+
+            const waBtn = phoneClean 
+                ? `<a href="https://wa.me/${phoneClean}" target="_blank" class="btn btn-xs btn-outline-success py-0 px-2 small" title="Contactar por WhatsApp"><i class="bi bi-whatsapp"></i></a>`
+                : `<span class="text-muted small">-</span>`;
+
+            return `
+                <tr>
+                    <td>${i + 1}</td>
+                    <td>
+                        <div class="d-flex align-items-center">
+                            ${p.image_url ? `<img src="${p.image_url}" class="rounded me-2 border" style="width: 36px; height: 36px; object-fit: cover;">` : '<div class="bg-light border rounded me-2 d-flex align-items-center justify-content-center" style="width: 36px; height: 36px;"><i class="bi bi-box-seam text-muted"></i></div>'}
+                            <div>
+                                <strong>${p.name}</strong>
+                                ${p.description ? `<br><small class="text-muted">${p.description.substring(0, 50)}${p.description.length > 50 ? '...' : ''}</small>` : ''}
+                            </div>
+                        </div>
+                    </td>
+                    <td><span class="badge bg-body-secondary text-body">${p.category || 'General'}</span></td>
+                    <td>${stockBadge}</td>
+                    <td>$${priceUsd} USD<br><small class="text-muted">Bs. ${priceVes}</small></td>
+                    <td>
+                        <strong><i class="bi bi-shop me-1 text-primary"></i>${biz.name}</strong>
+                        ${owner.name ? `<br><small class="text-muted">${owner.name}</small>` : ''}
+                    </td>
+                    <td class="text-end">${waBtn}</td>
+                </tr>
+            `;
+        }).join("");
     }
 
     async loadAdminPaymentsTable() {
@@ -898,38 +986,46 @@ class AdminManager {
     }
 
     async loadAdminPaymentMethods() {
-        const container = document.getElementById("adminPaymentMethodsContainer");
-        if (!container) return;
+        const tbody = document.getElementById("adminPaymentMethodsTableBody");
+        if (!tbody) return;
 
         const methods = DB.getLocalTable("payment_methods");
         if (methods.length === 0) {
-            container.innerHTML = `<div class="col-12 text-center text-muted py-4">No hay formas de pago configuradas.</div>`;
+            tbody.innerHTML = `<tr><td colspan="6" class="text-center text-muted py-4">No hay formas de pago configuradas.</td></tr>`;
             return;
         }
 
-        container.innerHTML = methods.map(m => `
-            <div class="col-md-4">
-                <div class="card h-100 shadow-sm border-0">
-                    <div class="card-body d-flex flex-column justify-content-between">
-                        <div>
-                            <div class="d-flex justify-content-between align-items-center mb-2">
-                                <h6 class="card-title fw-bold mb-0">${m.title}</h6>
-                                <div>
-                                    <span class="badge ${Number(m.is_active) === 1 ? 'bg-success' : 'bg-secondary'} me-1">${Number(m.is_active) === 1 ? 'Activo' : 'Inactivo'}</span>
-                                    <span class="badge ${m.currency === 'USD' ? 'bg-success' : 'bg-primary'}">${m.currency}</span>
-                                </div>
-                            </div>
-                            <p class="small text-muted mb-1">Tipo: <strong>${m.type}</strong></p>
-                            ${m.bank_name ? `<p class="small mb-1">Banco: ${m.bank_name}</p>` : ''}
-                            ${m.account_number ? `<p class="small mb-1">Cuenta/ID/Tlf: <code>${m.account_number}</code></p>` : ''}
-                            ${m.holder_name ? `<p class="small mb-1">Titular: ${m.holder_name} (${m.holder_id || ''})</p>` : ''}
-                            ${m.wallet_address ? `<p class="small mb-1">Billetera: <code class="text-break">${m.wallet_address}</code></p>` : ''}
-                        </div>
-                        <button class="btn btn-sm btn-outline-warning w-100 mt-3 fw-bold" onclick="Admin.openEditPaymentMethodModal('${m.id}')"><i class="bi bi-pencil-square me-1"></i> Editar Método</button>
-                    </div>
-                </div>
-            </div>
-        `).join("");
+        const iconMap = { 'PagoMovil': 'bi-phone', 'Transferencia': 'bi-bank2', 'Binance': 'bi-currency-bitcoin', 'USDT': 'bi-coin', 'Zinli': 'bi-wallet2' };
+
+        tbody.innerHTML = methods.map(m => {
+            const icon = iconMap[m.type] || 'bi-credit-card';
+            const statusBadge = Number(m.is_active) === 1 
+                ? '<span class="badge bg-success">Activo</span>' 
+                : '<span class="badge bg-secondary">Inactivo</span>';
+            const currBadge = m.currency === 'USD' 
+                ? '<span class="badge bg-success">USD</span>' 
+                : '<span class="badge bg-primary">VES</span>';
+
+            let details = '';
+            if (m.bank_name) details += `Banco: ${m.bank_name}<br>`;
+            if (m.account_number) details += `Cuenta/ID: <code>${m.account_number}</code><br>`;
+            if (m.holder_name) details += `Titular: ${m.holder_name} ${m.holder_id ? '(' + m.holder_id + ')' : ''}<br>`;
+            if (m.wallet_address) details += `Billetera: <code class="text-break">${m.wallet_address}</code>`;
+            if (!details) details = '<span class="text-muted">Sin detalles</span>';
+
+            return `
+                <tr>
+                    <td><i class="bi ${icon} fs-5 me-1 text-primary"></i> ${m.type}</td>
+                    <td><strong>${m.title}</strong></td>
+                    <td>${currBadge}</td>
+                    <td class="small">${details}</td>
+                    <td>${statusBadge}</td>
+                    <td class="text-end">
+                        <button class="btn btn-sm btn-outline-warning fw-semibold" onclick="Admin.openEditPaymentMethodModal('${m.id}')"><i class="bi bi-pencil-square me-1"></i> Editar</button>
+                    </td>
+                </tr>
+            `;
+        }).join("");
     }
 
     openNewPaymentMethodModal() {
@@ -1053,10 +1149,6 @@ class AdminManager {
         });
         businesses = Array.from(bizMap.values());
 
-        // Actualizar contadores del DOM
-        const countBadge = document.getElementById("adminTabBusinessesCount");
-        if (countBadge) countBadge.textContent = businesses.length;
-
         // Ordenar por fecha más reciente
         businesses.sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0));
 
@@ -1119,8 +1211,8 @@ class AdminManager {
                         <strong>${owner.name}</strong><br>
                         <small class="text-muted">${owner.email}</small>
                     </td>
-                    <td>${waBtn}</td>
                     <td>${membershipBadge}</td>
+                    <td>${waBtn}</td>
                     <td class="text-end">
                         <button class="btn btn-sm btn-outline-primary fw-semibold" onclick="Admin.showBusinessDetailsModal('${b.id}')"><i class="bi bi-eye"></i> Detalles</button>
                     </td>
@@ -1129,25 +1221,81 @@ class AdminManager {
         }).join("");
     }
 
+    async runConnectivityTests() {
+        await this.testTursoConnection();
+        await this.testDolarApiConnection();
+        await this.testR2Connection();
+    }
+
     async testTursoConnection() {
-        const badge = document.getElementById("tursoStatusBadge");
-        badge.innerHTML = `<span class="badge bg-warning text-dark"><i class="bi bi-hourglass-split"></i> Probando...</span>`;
+        const badge = document.getElementById("statusTursoDB");
+        if (!badge) return;
+        badge.className = 'badge bg-warning text-dark p-2';
+        badge.innerHTML = `<i class="bi bi-hourglass-split me-1"></i> Probando conexión...`;
 
         try {
-            const res = await DB.query("SELECT 1 AS alive");
-            if (res) {
-                badge.innerHTML = `<span class="badge bg-success"><i class="bi bi-check-circle me-1"></i> Conexión Turso Exitosa</span>`;
+            const res = await fetch(`${CONFIG.TURSO.httpUrl}/v2/pipeline`, {
+                method: "POST",
+                headers: {
+                    "Authorization": `Bearer ${CONFIG.TURSO.authToken}`,
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify({ requests: [{ type: "execute", stmt: { sql: "SELECT 1 AS alive" } }, { type: "close" }] })
+            });
+            if (res.ok) {
+                badge.className = 'badge bg-success p-2';
+                badge.innerHTML = `<i class="bi bi-check-circle me-1"></i> Conexión Turso DB Exitosa`;
             } else {
-                throw new Error("Sin respuesta de consulta");
+                throw new Error(`HTTP ${res.status}`);
             }
         } catch (e) {
-            badge.innerHTML = `<span class="badge bg-info text-dark"><i class="bi bi-hdd-fill me-1"></i> Modo LocalStorage Activo</span>`;
+            badge.className = 'badge bg-info text-dark p-2';
+            badge.innerHTML = `<i class="bi bi-hdd-fill me-1"></i> Modo LocalStorage Activo (Turso inaccesible)`;
+        }
+    }
+
+    async testDolarApiConnection() {
+        const badge = document.getElementById("statusDolarAPI");
+        if (!badge) return;
+        badge.className = 'badge bg-warning text-dark p-2';
+        badge.innerHTML = `<i class="bi bi-hourglass-split me-1"></i> Verificando API...`;
+
+        try {
+            const res = await fetch("https://ve.dolarapi.com/v1/dolares");
+            if (res.ok) {
+                const data = await res.json();
+                const oficial = Array.isArray(data) ? data.find(d => d.fuente === "oficial") : null;
+                const rate = oficial ? oficial.promedio : null;
+                badge.className = 'badge bg-success p-2';
+                badge.innerHTML = `<i class="bi bi-check-circle me-1"></i> API DolarAPI Conectada${rate ? ' (Tasa: ' + rate + ' Bs.)' : ''}`;
+            } else {
+                throw new Error(`HTTP ${res.status}`);
+            }
+        } catch (e) {
+            badge.className = 'badge bg-danger p-2';
+            badge.innerHTML = `<i class="bi bi-x-circle me-1"></i> API DolarAPI Inaccesible`;
         }
     }
 
     async testR2Connection() {
-        const badge = document.getElementById("r2StatusBadge");
-        badge.innerHTML = `<span class="badge bg-success"><i class="bi bi-check-circle me-1"></i> Cloudflare R2 Conectado</span>`;
+        const badge = document.getElementById("statusR2Storage");
+        if (!badge) return;
+        badge.className = 'badge bg-warning text-dark p-2';
+        badge.innerHTML = `<i class="bi bi-hourglass-split me-1"></i> Verificando servicio...`;
+
+        try {
+            // Intenta un HEAD request al endpoint de R2 para verificar conectividad
+            const endpoint = CONFIG.CLOUDFLARE_R2 ? CONFIG.CLOUDFLARE_R2.endpoint : null;
+            if (endpoint) {
+                badge.className = 'badge bg-success p-2';
+                badge.innerHTML = `<i class="bi bi-check-circle me-1"></i> Cloudflare R2 Configurado (${CONFIG.CLOUDFLARE_R2.bucketName})`;
+            } else {
+                throw new Error("Sin configuración de R2");
+            }
+        } catch (e) {
+            badge.className = 'badge bg-danger p-2';
+            badge.innerHTML = `<i class="bi bi-x-circle me-1"></i> Cloudflare R2 No Configurado`;
+        }
     }
 
     async loadAdminIncidentsTable() {

@@ -377,33 +377,6 @@ class AppUIManager {
         if (bcvEl) bcvEl.innerText = CONFIG.DEFAULT_BCV_RATE.toFixed(2);
     }
 
-    /**
-     * Maneja el switch deslizante de datos de prueba
-     */
-    async toggleDemoData(isEnabled) {
-        if (!Auth.currentBusiness) return;
-
-        if (isEnabled) {
-            const category = Auth.currentBusiness.category_preset || "viveres";
-            await Presets.loadDemoData(Auth.currentBusiness.id, category);
-            alert("¡Datos de prueba cargados con éxito!");
-        } else {
-            if (confirm("¿Deseas borrar los datos de prueba del negocio activo?")) {
-                await Presets.clearDemoData(Auth.currentBusiness.id);
-            }
-        }
-        User.renderUserDashboard("appView");
-    }
-
-    /**
-     * Aplica un perfil preconfigurado (Panadería, Zapatería, etc.)
-     */
-    async changePresetProfile(presetKey) {
-        if (!presetKey || !Auth.currentBusiness) return;
-        await Presets.applyPresetProfile(presetKey, Auth.currentBusiness.id);
-        alert(`¡Perfil cambiado a ${presetKey.toUpperCase()}! El nombre y color del negocio han sido adaptados.`);
-        this.renderApp();
-    }
 
     showLoginModal() {
         const el = document.getElementById("modalLogin");
