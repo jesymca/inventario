@@ -357,7 +357,18 @@ class AdminManager {
                                     <div class="card border p-3 shadow-sm h-100">
                                         <h6 class="fw-bold"><i class="bi bi-database me-2 text-primary"></i> Estado de la Base de Datos Turso DB</h6>
                                         <p class="small text-muted mb-2">Motor primario SQLite distribuido en la nube.</p>
-                                        <div id="statusTursoDB" class="badge bg-secondary p-2">Verificando conexión...</div>
+                                        <div id="statusTursoDB" class="badge bg-secondary p-2 mb-3">Verificando conexión...</div>
+                                        
+                                        <div class="mt-auto pt-2 border-top">
+                                            <label class="form-label small fw-bold text-dark mb-1"><i class="bi bi-link-45deg"></i> Endpoint URL Configurado:</label>
+                                            <div class="input-group input-group-sm mb-2">
+                                                <input type="text" class="form-control bg-body-tertiary font-monospace" value="${CONFIG.TURSO ? (CONFIG.TURSO.httpUrl || CONFIG.TURSO.url) : 'https://inventarios-herrejose.aws-ap-northeast-1.turso.io'}" readonly>
+                                            </div>
+                                            <div class="alert alert-info py-2 px-2 small mb-0" style="font-size: 0.78rem; line-height: 1.3;">
+                                                <i class="bi bi-info-circle-fill me-1 text-info"></i> <strong>¿Dónde modificar este enlace?</strong><br>
+                                                Si este servicio cambia de dirección en el futuro, puedes editar el dato en el archivo <code class="fw-bold text-dark">js/config.js</code> en la variable <code class="fw-bold text-dark">CONFIG.TURSO.httpUrl</code> (y <code class="fw-bold text-dark">CONFIG.TURSO.url</code>).
+                                            </div>
+                                        </div>
                                     </div>
                                 </div>
                                 <div class="col-md-4">
@@ -366,7 +377,7 @@ class AdminManager {
                                         <p class="small text-muted mb-2">Monitoreo en vivo de la tasa oficial BCV.</p>
                                         <div id="statusDolarAPI" class="badge bg-secondary p-2 mb-3">Verificando API...</div>
                                         
-                                        <div class="mt-2 pt-2 border-top">
+                                        <div class="mt-auto pt-2 border-top">
                                             <label class="form-label small fw-bold text-dark mb-1"><i class="bi bi-link-45deg"></i> Endpoint URL Configurado:</label>
                                             <div class="input-group input-group-sm mb-2">
                                                 <input type="text" class="form-control bg-body-tertiary font-monospace" value="${CONFIG.DOLAR_API_URL || 'https://ve.dolarapi.com/v1/dolares'}" readonly>
@@ -382,7 +393,18 @@ class AdminManager {
                                     <div class="card border p-3 shadow-sm h-100">
                                         <h6 class="fw-bold"><i class="bi bi-cloud-arrow-up me-2 text-info"></i> Alojamiento de Imágenes (Cloudflare R2)</h6>
                                         <p class="small text-muted mb-2">Servicio de almacenamiento de logos y fotos.</p>
-                                        <div id="statusR2Storage" class="badge bg-secondary p-2">Verificando servicio...</div>
+                                        <div id="statusR2Storage" class="badge bg-secondary p-2 mb-3">Verificando servicio...</div>
+                                        
+                                        <div class="mt-auto pt-2 border-top">
+                                            <label class="form-label small fw-bold text-dark mb-1"><i class="bi bi-link-45deg"></i> Endpoint URL Configurado:</label>
+                                            <div class="input-group input-group-sm mb-2">
+                                                <input type="text" class="form-control bg-body-tertiary font-monospace" value="${CONFIG.CLOUDFLARE_R2 ? CONFIG.CLOUDFLARE_R2.endpoint : 'https://da7c23add0ce839e4989c068fbfa4394.r2.cloudflarestorage.com'}" readonly>
+                                            </div>
+                                            <div class="alert alert-info py-2 px-2 small mb-0" style="font-size: 0.78rem; line-height: 1.3;">
+                                                <i class="bi bi-info-circle-fill me-1 text-info"></i> <strong>¿Dónde modificar este enlace?</strong><br>
+                                                Si este servicio cambia de dirección en el futuro, puedes editar el dato en el archivo <code class="fw-bold text-dark">js/config.js</code> en la variable <code class="fw-bold text-dark">CONFIG.CLOUDFLARE_R2.endpoint</code>.
+                                            </div>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
@@ -1368,7 +1390,8 @@ class AdminManager {
         badge.innerHTML = `<i class="bi bi-hourglass-split me-1"></i> Verificando API...`;
 
         try {
-            const res = await fetch("https://ve.dolarapi.com/v1/dolares");
+            const apiUrl = CONFIG.DOLAR_API_URL || "https://ve.dolarapi.com/v1/dolares";
+            const res = await fetch(apiUrl);
             if (res.ok) {
                 const data = await res.json();
                 const oficial = Array.isArray(data) ? data.find(d => d.fuente === "oficial") : null;
