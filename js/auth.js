@@ -190,7 +190,7 @@ class AuthManager {
                     google_id: googleId,
                     name: name,
                     email: email,
-                    phone: googlePhone,
+                    phone: "",
                     password_hash: null,
                     role: email === CONFIG.SUPER_ADMIN.email.toLowerCase() ? "superadmin" : "user",
                     trial_starts_at: now.toISOString(),
@@ -215,7 +215,7 @@ class AuthManager {
                     owner_user_id: user.id,
                     name: `Comercio de ${user.name}`,
                     address: "Dirección Principal",
-                    phone: googlePhone || "0414-0000000",
+                    phone: "",
                     email: user.email,
                     logo_url: null,
                     branding_color: "#0d6efd",
@@ -258,6 +258,16 @@ class AuthManager {
             } else if (typeof AppUI !== "undefined" && AppUI && typeof AppUI.renderApp === "function") {
                 AppUI.renderApp();
             }
+
+            // Si el usuario es nuevo de Google y no tiene teléfono, solicitar
+            if (!user.phone && user.id.startsWith('usr_g_')) {
+                setTimeout(() => {
+                    if (typeof AppUI !== 'undefined' && AppUI.showPhoneRequestModal) {
+                        AppUI.showPhoneRequestModal(user);
+                    }
+                }, 1500);
+            }
+
             return loginResult;
         } catch (err) {
             console.error("Error en login Google:", err);

@@ -753,12 +753,16 @@ class UserManager {
             purchase_price: parseFloat(form.purchase_price.value || 0),
             sale_price: parseFloat(form.sale_price.value || 0),
             category: form.category.value || "General",
+            sell_type: form.sell_type ? form.sell_type.value : 'retail',
+            wholesale_price: parseFloat(form.wholesale_price ? form.wholesale_price.value : 0),
+            wholesale_min_qty: parseInt(form.wholesale_min_qty ? form.wholesale_min_qty.value : 1),
+            units_per_package: parseInt(form.units_per_package ? form.units_per_package.value : 1),
             created_at: new Date().toISOString()
         };
 
         await DB.query(
-            `INSERT INTO products (id, business_id, name, description, image_url, quantity, purchase_price, sale_price, category) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-            [newProd.id, newProd.business_id, newProd.name, newProd.description, newProd.image_url, newProd.quantity, newProd.purchase_price, newProd.sale_price, newProd.category]
+            `INSERT INTO products (id, business_id, name, description, image_url, quantity, purchase_price, sale_price, category, sell_type, wholesale_price, wholesale_min_qty, units_per_package) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            [newProd.id, newProd.business_id, newProd.name, newProd.description, newProd.image_url, newProd.quantity, newProd.purchase_price, newProd.sale_price, newProd.category, newProd.sell_type, newProd.wholesale_price, newProd.wholesale_min_qty, newProd.units_per_package]
         );
         DB.setLocalRecord("products", newProd);
 
@@ -779,6 +783,18 @@ class UserManager {
         document.getElementById("editProductQuantity").value = prod.quantity || 0;
         document.getElementById("editProductPurchasePrice").value = prod.purchase_price || 0;
         document.getElementById("editProductSalePrice").value = prod.sale_price || 0;
+        // Wholesale fields
+        const sellTypeEl = document.getElementById("editProductSellType");
+        if (sellTypeEl) sellTypeEl.value = prod.sell_type || 'retail';
+        const unitsEl = document.getElementById("editProductUnitsPerPkg");
+        if (unitsEl) unitsEl.value = prod.units_per_package || 1;
+        const wpEl = document.getElementById("editProductWholesalePrice");
+        if (wpEl) wpEl.value = prod.wholesale_price || 0;
+        const wmEl = document.getElementById("editProductWholesaleMinQty");
+        if (wmEl) wmEl.value = prod.wholesale_min_qty || 1;
+        // Show/hide wholesale fields
+        const wsFields = document.getElementById("wholesaleFieldsEdit");
+        if (wsFields) wsFields.style.display = (prod.sell_type === 'wholesale' || prod.sell_type === 'both') ? 'flex' : 'none';
 
         const modal = new bootstrap.Modal(document.getElementById("modalEditProduct"));
         modal.show();
@@ -805,13 +821,17 @@ class UserManager {
         products[idx].quantity = parseInt(form.quantity.value || 0);
         products[idx].purchase_price = parseFloat(form.purchase_price.value || 0);
         products[idx].sale_price = parseFloat(form.sale_price.value || 0);
+        products[idx].sell_type = form.sell_type ? form.sell_type.value : (products[idx].sell_type || 'retail');
+        products[idx].wholesale_price = parseFloat(form.wholesale_price ? form.wholesale_price.value : (products[idx].wholesale_price || 0));
+        products[idx].wholesale_min_qty = parseInt(form.wholesale_min_qty ? form.wholesale_min_qty.value : (products[idx].wholesale_min_qty || 1));
+        products[idx].units_per_package = parseInt(form.units_per_package ? form.units_per_package.value : (products[idx].units_per_package || 1));
         if (imageUrl) products[idx].image_url = imageUrl;
 
         await DB.query(
-            `UPDATE products SET name = ?, description = ?, category = ?, quantity = ?, purchase_price = ?, sale_price = ? ${imageUrl ? ', image_url = ?' : ''} WHERE id = ?`,
+            `UPDATE products SET name = ?, description = ?, category = ?, quantity = ?, purchase_price = ?, sale_price = ?, sell_type = ?, wholesale_price = ?, wholesale_min_qty = ?, units_per_package = ? ${imageUrl ? ', image_url = ?' : ''} WHERE id = ?`,
             imageUrl ? 
-            [products[idx].name, products[idx].description, products[idx].category, products[idx].quantity, products[idx].purchase_price, products[idx].sale_price, imageUrl, productId] :
-            [products[idx].name, products[idx].description, products[idx].category, products[idx].quantity, products[idx].purchase_price, products[idx].sale_price, productId]
+            [products[idx].name, products[idx].description, products[idx].category, products[idx].quantity, products[idx].purchase_price, products[idx].sale_price, products[idx].sell_type, products[idx].wholesale_price, products[idx].wholesale_min_qty, products[idx].units_per_package, imageUrl, productId] :
+            [products[idx].name, products[idx].description, products[idx].category, products[idx].quantity, products[idx].purchase_price, products[idx].sale_price, products[idx].sell_type, products[idx].wholesale_price, products[idx].wholesale_min_qty, products[idx].units_per_package, productId]
         );
         DB.setLocalTable("products", products);
 
@@ -1181,7 +1201,7 @@ class UserManager {
             this.saleCartItems.push({
                 product_id: prod.id,
                 name: prod.name,
-                unit_price: prod.sale_price,
+                unit_price: (prod.sell_type === 'wholesale' || prod.sell_type === 'both') && qty >= (prod.wholesale_min_qty || 999999) && prod.wholesale_price > 0 ? prod.wholesale_price : prod.sale_price,
                 quantity: qty,
                 available_stock: prod.quantity
             });
@@ -1404,6 +1424,16 @@ class UserManager {
         input.value = val;
     }
 
+    calcPurchaseTotalUnits() {
+        const bulkInput = document.getElementById("purchaseBulkQtyInput");
+        const unitsInput = document.getElementById("purchaseUnitsPerPkgInput");
+        const totalInput = document.getElementById("purchaseItemQtyInput");
+        if (!bulkInput || !unitsInput || !totalInput) return;
+        const bulks = parseInt(bulkInput.value || 1);
+        const units = parseInt(unitsInput.value || 1);
+        totalInput.value = bulks * units;
+    }
+
     addPurchaseCartItem() {
         const productSelect = document.getElementById("purchaseProductSelect");
         const qtyInput = document.getElementById("purchaseItemQtyInput");
@@ -1435,6 +1465,10 @@ class UserManager {
         }
 
         qtyInput.value = 1;
+        const bulkInput = document.getElementById("purchaseBulkQtyInput");
+        if (bulkInput) bulkInput.value = 1;
+        const unitsPerPkgInput = document.getElementById("purchaseUnitsPerPkgInput");
+        if (unitsPerPkgInput) unitsPerPkgInput.value = 1;
         this.renderPurchaseCart();
     }
 
@@ -1979,7 +2013,7 @@ class UserManager {
 
         if (startDateStr || endDateStr) {
             items = items.filter(i => {
-                const itemDate = new Date(i.created_at || i.date || 0);
+                const itemDate = new Date(i.sale_date || i.purchase_date || i.created_at || i.date || 0);
                 if (startDateStr && itemDate < new Date(startDateStr + "T00:00:00")) return false;
                 if (endDateStr && itemDate > new Date(endDateStr + "T23:59:59")) return false;
                 return true;
@@ -2000,11 +2034,15 @@ class UserManager {
         let tableHtml = "";
 
         if (type === "sales") {
-            const totalUsd = items.reduce((sum, s) => sum + Number(s.total_usd || 0), 0);
-            const totalVes = items.reduce((sum, s) => sum + Number(s.total_ves || 0), 0);
+            const clients = DB.getLocalTable("clients");
+            const saleItems = DB.getLocalTable("sale_items");
+            const allProducts = DB.getLocalTable("products");
+            const bcvRate = CONFIG.DEFAULT_BCV_RATE || 1;
+            const totalUsd = items.reduce((sum, s) => sum + Number(s.total_amount || 0), 0);
+            const totalVes = totalUsd * bcvRate;
 
             tableHtml = `
-                <div class="d-flex justify-content-between align-items-center mb-3">
+                <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
                     <div>
                         <h6 class="fw-bold mb-0">Reporte de Ventas (${items.length} Registros)</h6>
                         <small class="text-muted">Total acumulado: <strong class="text-success">$${totalUsd.toFixed(2)} USD</strong> (Bs. ${totalVes.toFixed(2)})</small>
@@ -2024,25 +2062,40 @@ class UserManager {
                             </tr>
                         </thead>
                         <tbody>
-                            ${items.map((s, idx) => `
+                            ${items.map((s, idx) => {
+                                const saleDate = s.sale_date || s.created_at;
+                                const dateStr = saleDate ? new Date(saleDate).toLocaleString() : 'N/A';
+                                const client = clients.find(c => c.id === s.client_id);
+                                const clientName = client ? client.name : 'Cliente Ocasional';
+                                const thisItems = saleItems.filter(si => si.sale_id === s.id);
+                                const prodNames = thisItems.map(si => {
+                                    const p = allProducts.find(pr => pr.id === si.product_id);
+                                    return (p ? p.name : 'Producto') + ' (x' + si.quantity + ')';
+                                }).join(', ');
+                                const totalAmt = Number(s.total_amount || 0);
+                                const totalBs = totalAmt * bcvRate;
+                                return `
                                 <tr>
                                     <td>${idx + 1}</td>
-                                    <td>${new Date(s.created_at).toLocaleString()}</td>
-                                    <td>${s.client_name || 'Cliente Ocasional'}</td>
-                                    <td><small>${(s.items || []).map(i => i.name + ' (x' + i.quantity + ')').join(', ')}</small></td>
-                                    <td><strong class="text-success">$${Number(s.total_usd).toFixed(2)}</strong></td>
-                                    <td>Bs. ${Number(s.total_ves).toFixed(2)}</td>
-                                </tr>
-                            `).join("")}
+                                    <td>${dateStr}</td>
+                                    <td>${clientName}</td>
+                                    <td><small>${prodNames || 'Sin detalle'}</small></td>
+                                    <td><strong class="text-success">$${totalAmt.toFixed(2)}</strong></td>
+                                    <td>Bs. ${totalBs.toFixed(2)}</td>
+                                </tr>`;
+                            }).join("")}
                         </tbody>
                     </table>
                 </div>
             `;
         } else if (type === "purchases") {
-            const totalUsd = items.reduce((sum, p) => sum + Number(p.total_usd || 0), 0);
+            const suppliers = DB.getLocalTable("suppliers");
+            const purchaseItemsAll = DB.getLocalTable("purchase_items");
+            const allProducts = DB.getLocalTable("products");
+            const totalUsd = items.reduce((sum, p) => sum + Number(p.total_amount || 0), 0);
 
             tableHtml = `
-                <div class="d-flex justify-content-between align-items-center mb-3">
+                <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
                     <div>
                         <h6 class="fw-bold mb-0">Reporte de Compras (${items.length} Registros)</h6>
                         <small class="text-muted">Inversión Total: <strong class="text-danger">$${totalUsd.toFixed(2)} USD</strong></small>
@@ -2061,15 +2114,26 @@ class UserManager {
                             </tr>
                         </thead>
                         <tbody>
-                            ${items.map((p, idx) => `
+                            ${items.map((p, idx) => {
+                                const purchDate = p.purchase_date || p.created_at;
+                                const dateStr = purchDate ? new Date(purchDate).toLocaleString() : 'N/A';
+                                const supplier = suppliers.find(sup => sup.id === p.supplier_id);
+                                const supplierName = supplier ? supplier.name : 'Proveedor General';
+                                const thisItems = purchaseItemsAll.filter(pi => pi.purchase_id === p.id);
+                                const prodNames = thisItems.map(pi => {
+                                    const pr = allProducts.find(prod => prod.id === pi.product_id);
+                                    return (pr ? pr.name : 'Producto') + ' (x' + pi.quantity + ')';
+                                }).join(', ');
+                                const totalAmt = Number(p.total_amount || 0);
+                                return `
                                 <tr>
                                     <td>${idx + 1}</td>
-                                    <td>${new Date(p.created_at).toLocaleString()}</td>
-                                    <td>${p.supplier_name || 'Proveedor General'}</td>
-                                    <td><small>${p.items ? p.items.map(i => i.name + ' (x' + i.quantity + ')').join(', ') : (p.product_name || 'Mercancía')}</small></td>
-                                    <td><strong class="text-danger">$${Number(p.total_usd).toFixed(2)}</strong></td>
-                                </tr>
-                            `).join("")}
+                                    <td>${dateStr}</td>
+                                    <td>${supplierName}</td>
+                                    <td><small>${prodNames || 'Mercancía'}</small></td>
+                                    <td><strong class="text-danger">$${totalAmt.toFixed(2)}</strong></td>
+                                </tr>`;
+                            }).join("")}
                         </tbody>
                     </table>
                 </div>

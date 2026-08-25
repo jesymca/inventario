@@ -227,7 +227,7 @@ class AppUIManager {
                     <div class="container-fluid">
                         <a class="navbar-brand d-flex align-items-center fw-bold" href="#">
                             <img src="${CONFIG.LOGO_PATH}" alt="Logo" height="36" class="me-2 rounded">
-                            <span>${biz ? biz.name : CONFIG.APP_NAME}</span>
+                            <span class="text-truncate d-inline-block" style="max-width: 45vw">${biz ? biz.name : CONFIG.APP_NAME}</span>
                         </a>
                         <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarContent">
                             <span class="navbar-toggler-icon"></span>
@@ -296,7 +296,7 @@ class AppUIManager {
                     <div class="container">
                         <a class="navbar-brand d-flex align-items-center fw-bold" href="#">
                             <img src="${CONFIG.LOGO_PATH}" alt="Logo" height="40" class="me-2 rounded">
-                            <span>${CONFIG.APP_NAME}</span>
+                            <span class="text-truncate d-inline-block" style="max-width: 50vw">${CONFIG.APP_NAME}</span>
                         </a>
                         <div class="d-flex align-items-center gap-2">
                             <button class="btn btn-outline-secondary btn-sm" onclick="AppUI.toggleTheme()" title="Cambiar Tema">
@@ -543,6 +543,39 @@ class AppUIManager {
                 el.classList.remove("show");
             }
         }
+    }
+
+    showPhoneRequestModal(user) {
+        this._phoneRequestUser = user;
+        const modal = new bootstrap.Modal(document.getElementById('modalRequestPhone'));
+        modal.show();
+    }
+
+    async saveRequestedPhone() {
+        const input = document.getElementById('requestPhoneInput');
+        if (!input || !input.value.trim()) return alert('Por favor ingresa tu número de teléfono.');
+        const phone = input.value.trim();
+        const user = this._phoneRequestUser;
+        if (!user) return;
+
+        // Actualizar usuario
+        user.phone = phone;
+        try {
+            await DB.query('UPDATE users SET phone = ? WHERE id = ?', [phone, user.id]);
+        } catch (e) { console.warn('Error actualizando teléfono en Turso:', e); }
+        DB.setLocalRecord('users', user);
+
+        // Actualizar el negocio también
+        if (Auth.currentBusiness && (!Auth.currentBusiness.phone || Auth.currentBusiness.phone === '0414-0000000' || Auth.currentBusiness.phone === '')) {
+            Auth.currentBusiness.phone = phone;
+            try {
+                await DB.query('UPDATE businesses SET phone = ? WHERE id = ?', [phone, Auth.currentBusiness.id]);
+            } catch (e) {}
+            DB.setLocalRecord('businesses', Auth.currentBusiness);
+        }
+
+        bootstrap.Modal.getInstance(document.getElementById('modalRequestPhone')).hide();
+        this.showAlert('Teléfono Guardado', '¡Tu número de contacto ha sido registrado exitosamente!', 'success');
     }
 }
 

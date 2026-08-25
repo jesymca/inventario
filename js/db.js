@@ -65,6 +65,40 @@ class DatabaseManager {
             };
             this.setLocalRecord("users", adminUser);
         }
+
+        // Migración v1.9.0: Agregar columnas wholesale a productos existentes en localStorage
+        const existingProducts = this.getLocalTable("products");
+        if (existingProducts.length > 0 && existingProducts[0].sell_type === undefined) {
+            existingProducts.forEach(p => {
+                if (p.sell_type === undefined) p.sell_type = 'retail';
+                if (p.wholesale_price === undefined) p.wholesale_price = 0;
+                if (p.wholesale_min_qty === undefined) p.wholesale_min_qty = 1;
+                if (p.units_per_package === undefined) p.units_per_package = 1;
+            });
+            this.setLocalTable("products", existingProducts);
+        }
+
+        // Migración Turso v1.9.0: agregar columnas wholesale
+        this.runMigrations();
+    }
+
+    /**
+     * Ejecuta migraciones de esquema idempotentes en Turso
+     */
+    async runMigrations() {
+        const migrations = [
+            "ALTER TABLE products ADD COLUMN sell_type TEXT DEFAULT 'retail'",
+            "ALTER TABLE products ADD COLUMN wholesale_price REAL DEFAULT 0",
+            "ALTER TABLE products ADD COLUMN wholesale_min_qty INTEGER DEFAULT 1",
+            "ALTER TABLE products ADD COLUMN units_per_package INTEGER DEFAULT 1"
+        ];
+        for (const sql of migrations) {
+            try {
+                await this.query(sql);
+            } catch (e) {
+                // Column already exists - ignorar silenciosamente
+            }
+        }
     }
 
     /**

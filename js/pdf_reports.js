@@ -228,6 +228,144 @@ class PDFReportGenerator {
 
         doc.save(`Reporte_Proveedores_${new Date().toISOString().slice(0,10)}.pdf`);
     }
+
+    /**
+     * Genera Reporte PDF de Ventas
+     */
+    generateSalesPDF(sales, businessParam = "Mi Comercio") {
+        if (!window.jspdf) {
+            alert("La librería jsPDF no está cargada.");
+            return;
+        }
+
+        const { jsPDF } = window.jspdf;
+        const doc = new jsPDF();
+        const clients = DB.getLocalTable("clients");
+        const saleItems = DB.getLocalTable("sale_items");
+        const products = DB.getLocalTable("products");
+        const bcvRate = CONFIG.DEFAULT_BCV_RATE || 1;
+
+        this.addHeader(doc, "REPORTE DE VENTAS REALIZADAS", businessParam);
+
+        const tableColumn = ["#", "Fecha", "Cliente", "Productos", "Total ($)", "Total (Bs)"];
+        const tableRows = [];
+        let grandTotalUsd = 0;
+
+        sales.forEach((s, index) => {
+            const saleDate = s.sale_date || s.created_at;
+            const dateStr = saleDate ? new Date(saleDate).toLocaleDateString() : 'N/A';
+            const client = clients.find(c => c.id === s.client_id);
+            const clientName = client ? client.name : 'Cliente Ocasional';
+            const thisItems = saleItems.filter(si => si.sale_id === s.id);
+            const prodNames = thisItems.map(si => {
+                const p = products.find(pr => pr.id === si.product_id);
+                return (p ? p.name : 'Producto') + ' (x' + si.quantity + ')';
+            }).join(', ') || 'Sin detalle';
+            const totalAmt = Number(s.total_amount || 0);
+            const totalBs = totalAmt * bcvRate;
+            grandTotalUsd += totalAmt;
+
+            tableRows.push([
+                index + 1,
+                dateStr,
+                clientName,
+                prodNames,
+                `$${totalAmt.toFixed(2)}`,
+                `Bs. ${totalBs.toFixed(2)}`
+            ]);
+        });
+
+        tableRows.push([
+            "",
+            "TOTALES",
+            "",
+            "",
+            `$${grandTotalUsd.toFixed(2)}`,
+            `Bs. ${(grandTotalUsd * bcvRate).toFixed(2)}`
+        ]);
+
+        doc.autoTable({
+            head: [tableColumn],
+            body: tableRows,
+            startY: 40,
+            theme: "grid",
+            headStyles: { fillColor: [25, 135, 84], textColor: 255, fontStyle: "bold" },
+            alternateRowStyles: { fillColor: [248, 249, 250] },
+            styles: { fontSize: 7, cellPadding: 2 },
+            columnStyles: { 3: { cellWidth: 50 } }
+        });
+
+        const pageCount = doc.internal.getNumberOfPages();
+        this.addFooter(doc, pageCount, businessParam);
+        doc.save(`Reporte_Ventas_${new Date().toISOString().slice(0,10)}.pdf`);
+    }
+
+    /**
+     * Genera Reporte PDF de Compras
+     */
+    generatePurchasesPDF(purchases, businessParam = "Mi Comercio") {
+        if (!window.jspdf) {
+            alert("La librería jsPDF no está cargada.");
+            return;
+        }
+
+        const { jsPDF } = window.jspdf;
+        const doc = new jsPDF();
+        const suppliers = DB.getLocalTable("suppliers");
+        const purchaseItemsAll = DB.getLocalTable("purchase_items");
+        const products = DB.getLocalTable("products");
+
+        this.addHeader(doc, "REPORTE DE COMPRAS REALIZADAS", businessParam);
+
+        const tableColumn = ["#", "Fecha", "Proveedor", "Productos", "Total ($)"];
+        const tableRows = [];
+        let grandTotalUsd = 0;
+
+        purchases.forEach((p, index) => {
+            const purchDate = p.purchase_date || p.created_at;
+            const dateStr = purchDate ? new Date(purchDate).toLocaleDateString() : 'N/A';
+            const supplier = suppliers.find(sup => sup.id === p.supplier_id);
+            const supplierName = supplier ? supplier.name : 'Proveedor General';
+            const thisItems = purchaseItemsAll.filter(pi => pi.purchase_id === p.id);
+            const prodNames = thisItems.map(pi => {
+                const pr = products.find(prod => prod.id === pi.product_id);
+                return (pr ? pr.name : 'Producto') + ' (x' + pi.quantity + ')';
+            }).join(', ') || 'Mercancía';
+            const totalAmt = Number(p.total_amount || 0);
+            grandTotalUsd += totalAmt;
+
+            tableRows.push([
+                index + 1,
+                dateStr,
+                supplierName,
+                prodNames,
+                `$${totalAmt.toFixed(2)}`
+            ]);
+        });
+
+        tableRows.push([
+            "",
+            "TOTALES",
+            "",
+            "",
+            `$${grandTotalUsd.toFixed(2)}`
+        ]);
+
+        doc.autoTable({
+            head: [tableColumn],
+            body: tableRows,
+            startY: 40,
+            theme: "grid",
+            headStyles: { fillColor: [220, 53, 69], textColor: 255, fontStyle: "bold" },
+            alternateRowStyles: { fillColor: [248, 249, 250] },
+            styles: { fontSize: 7, cellPadding: 2 },
+            columnStyles: { 3: { cellWidth: 55 } }
+        });
+
+        const pageCount = doc.internal.getNumberOfPages();
+        this.addFooter(doc, pageCount, businessParam);
+        doc.save(`Reporte_Compras_${new Date().toISOString().slice(0,10)}.pdf`);
+    }
 }
 
 const PDFGenerator = new PDFReportGenerator();
