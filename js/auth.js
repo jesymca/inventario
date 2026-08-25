@@ -334,39 +334,77 @@ class AuthManager {
     }
 
     /**
+     * Obtiene el estado detallado de la membresía / prueba del usuario actual
+     */
+    getMembershipStatus() {
+        if (!this.currentUser) {
+            return { daysLeft: 0, rawDaysLeft: 0, totalDays: 15, isExpired: true, isSuspended: false, type: "vencida", label: "Caducada", expDate: null };
+        }
+
+        const localUsers = DB.getLocalTable("users") || [];
+        const u = localUsers.find(x => String(x.id).toLowerCase() === String(this.currentUser.id).toLowerCase() || (x.email && x.email.toLowerCase() === String(this.currentUser.email).toLowerCase())) || this.currentUser;
+
+        // Sincronizar propiedades en sesión en vivo
+        this.currentUser.membership_expires_at = u.membership_expires_at;
+        this.currentUser.membership_type = u.membership_type;
+        this.currentUser.is_active = u.is_active;
+
+        const now = new Date();
+        let expDate = null;
+        let type = u.membership_type || "prueba";
+        let totalDays = 15;
+
+        if (u.membership_expires_at) {
+            expDate = new Date(u.membership_expires_at);
+            totalDays = type === "cortesia" ? 365 : 30;
+        } else {
+            const startStr = u.trial_starts_at || u.created_at || now.toISOString();
+            const start = new Date(startStr);
+            expDate = new Date((isNaN(start.getTime()) ? now.getTime() : start.getTime()) + (CONFIG.FREE_TRIAL_DAYS || 15) * 86400000);
+            totalDays = 15;
+            type = "prueba";
+        }
+
+        const diffMs = expDate.getTime() - now.getTime();
+        const daysLeft = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
+        const isExpired = daysLeft <= 0;
+        const isSuspended = Number(u.is_active !== undefined ? u.is_active : 1) === 0;
+
+        let label = "En Prueba (15 días)";
+        if (type === "cortesia") {
+            label = `Membresía Cortesía (${expDate ? expDate.toLocaleDateString() : 'Indefinida'})`;
+        } else if (type === "comercial" || u.membership_expires_at) {
+            label = !isExpired ? `Membresía Comercial Activa (hasta ${expDate.toLocaleDateString()})` : `Membresía Vencida (${expDate.toLocaleDateString()})`;
+        } else if (isExpired) {
+            label = "Período de Prueba Vencido";
+        }
+
+        return {
+            daysLeft: isExpired ? 0 : daysLeft,
+            rawDaysLeft: daysLeft,
+            totalDays,
+            isExpired,
+            isSuspended,
+            type,
+            label,
+            expDate
+        };
+    }
+
+    /**
      * Calcula los días restantes de la prueba gratuita de 15 días
      */
     getRemainingTrialDays() {
-        if (!this.currentUser) return 0;
-        const start = new Date(this.currentUser.trial_starts_at || Date.now());
-        const expire = new Date(start.getTime() + CONFIG.FREE_TRIAL_DAYS * 86400000);
-        const diffMs = expire - new Date();
-        const diffDays = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
-        return diffDays > 0 ? diffDays : 0;
+        const status = this.getMembershipStatus();
+        return status.type === "prueba" ? status.daysLeft : 0;
     }
 
     /**
      * Calcula los días restantes de membresía activa
      */
     getRemainingMembershipDays() {
-        if (!this.currentUser) return 0;
-
-        let expiresAt = this.currentUser.membership_expires_at;
-        const users = DB.getLocalTable("users");
-        const u = users.find(x => x.id === this.currentUser.id || (x.email && x.email.toLowerCase() === this.currentUser.email.toLowerCase()));
-
-        if (u) {
-            if (u.membership_expires_at) expiresAt = u.membership_expires_at;
-            this.currentUser.membership_expires_at = u.membership_expires_at;
-            this.currentUser.membership_type = u.membership_type;
-            this.currentUser.is_active = u.is_active;
-        }
-
-        if (!expiresAt) return 0;
-        const expire = new Date(expiresAt);
-        const diffMs = expire - new Date();
-        const diffDays = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
-        return diffDays > 0 ? diffDays : 0;
+        const status = this.getMembershipStatus();
+        return status.type !== "prueba" ? status.daysLeft : status.daysLeft;
     }
 }
 

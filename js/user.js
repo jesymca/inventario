@@ -20,25 +20,149 @@ class UserManager {
         if (!container) return;
 
         const currentBiz = Auth.currentBusiness || { name: "Mi Comercio", branding_color: "#0d6efd" };
-        const trialDays = Auth.getRemainingTrialDays();
-        const membershipDays = Auth.getRemainingMembershipDays();
+        const status = Auth.getMembershipStatus();
+        const daysLeft = status.daysLeft;
+        const totalDurationDays = status.totalDays;
+        const isExpired = status.isExpired;
+        const isSuspended = status.isSuspended;
 
-        container.innerHTML = `
-            <!-- Banner de Estado de Membresía / Prueba -->
-            <div class="alert ${membershipDays > 0 ? 'alert-success' : (trialDays > 0 ? 'alert-info' : 'alert-warning')} shadow-sm d-flex justify-content-between align-items-center mb-3">
-                <div class="d-flex align-items-center">
-                    <i class="bi bi-clock-history fs-3 me-3"></i>
-                    <div>
-                        <h6 class="alert-heading mb-0 fw-bold">
-                            ${membershipDays > 0 ? `Membresía Activa: Te quedan ${membershipDays} días de servicio` : 
-                              (trialDays > 0 ? `Período de Prueba Gratuito: Te quedan ${trialDays} días de uso libre (15 Días)` : 
-                              'Tu período de prueba o membresía ha caducado. Por favor realiza tu pago.')}
-                        </h6>
-                        <small>Membresía mensual: <strong>$${CONFIG.MEMBERSHIP_PRICE_USD.toFixed(2)} USD</strong> (Tasa Oficial BCV: Bs. ${CONFIG.DEFAULT_BCV_RATE.toFixed(2)})</small>
+        // Calcular porcentaje y color de la barra de progreso
+        let pct = 0;
+        let barClass = "bg-danger";
+        if (daysLeft > 0) {
+            pct = Math.min(100, Math.max(5, Math.round((daysLeft / totalDurationDays) * 100)));
+            if (daysLeft > 7) barClass = "bg-success";
+            else if (daysLeft > 3) barClass = "bg-warning";
+            else barClass = "bg-danger";
+        } else {
+            pct = 0;
+            barClass = "bg-danger";
+        }
+
+        // Buscar si hay reportes de pago pendientes del usuario actual
+        const currentUserId = Auth.currentUser ? Auth.currentUser.id : "";
+        const currentUserEmail = Auth.currentUser ? (Auth.currentUser.email || "").toLowerCase() : "";
+        const allPayments = DB.getLocalTable("payments") || [];
+        const pendingPayment = allPayments.find(p => 
+            (p.user_id === currentUserId || (p.user_email && p.user_email.toLowerCase() === currentUserEmail)) &&
+            p.status === "pendiente"
+        );
+
+        // BLOQUEO ABSOLUTO: Si la membresía venció o está suspendido y NO es SuperAdmin
+        if (!Auth.isSuperAdmin() && (isExpired || isSuspended)) {
+            container.innerHTML = `
+                <div id="systemLockoutView" class="container py-5 my-auto text-center">
+                    <div class="row justify-content-center">
+                        <div class="col-lg-7 col-md-9">
+                            <div class="card shadow-lg border-0 rounded-4 p-4 text-center">
+                                <div class="card-body">
+                                    <!-- Logo del Comercio Centrado -->
+                                    <div class="mb-3">
+                                        <img src="${CONFIG.LOGO_PATH}" alt="Logo" height="75" class="rounded border p-1 shadow-sm">
+                                    </div>
+                                    
+                                    <div class="mb-3">
+                                        <i class="${isSuspended ? 'bi bi-shield-x text-danger' : 'bi bi-lock-fill text-warning'}" style="font-size: 3.5rem;"></i>
+                                    </div>
+
+                                    <h3 class="fw-extrabold ${isSuspended ? 'text-danger' : 'text-dark'} mb-2">
+                                        ${isSuspended ? 'CUENTA SUSPENDIDA POR EL ADMINISTRADOR' : 'TIEMPO DE USO BLOQUEADO'}
+                                    </h3>
+
+                                    <p class="text-muted leading-relaxed mb-4 fs-6">
+                                        ${isSuspended 
+                                            ? 'Tu acceso al sistema ha sido suspendido temporalmente por el Administrador. Si deseas solventar tu situación o solicitar la reactivación, declara tu pago de membresía o envía un reporte de incidencia.' 
+                                            : 'Tu período de prueba gratuita o membresía ha caducado. Para continuar utilizando la plataforma de control de inventarios, declara tu pago a continuación para que sea validado.'
+                                        }
+                                    </p>
+
+                                    <!-- Indicador de Pago Pendiente -->
+                                    ${pendingPayment ? `
+                                        <div class="alert alert-warning border-warning shadow-sm py-3 px-3 mb-4 text-start">
+                                            <div class="d-flex align-items-center">
+                                                <i class="bi bi-hourglass-split fs-3 text-warning me-3"></i>
+                                                <div>
+                                                    <h6 class="alert-heading fw-bold mb-1"><i class="bi bi-info-circle me-1"></i> REPORTE DE PAGO EN ESPERA DE CONFIRMACIÓN</h6>
+                                                    <small class="text-dark">Tienes un reporte de pago registrado (Ref: <code>${pendingPayment.reference_number || 'N/A'}</code> del ${pendingPayment.payment_date || 'hoy'}) en proceso de revisión por el SuperAdmin. Al ser verificado, tu sistema se activará inmediatamente.</small>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    ` : ''}
+
+                                    <!-- Tarifa Mensual y Tasa BCV -->
+                                    <div class="bg-body-tertiary p-3 rounded-3 mb-4 border shadow-sm">
+                                        <div class="row align-items-center g-2 text-center">
+                                            <div class="col-6 border-end">
+                                                <small class="text-muted d-block fw-semibold" style="font-size: 0.75rem;">MEMBRESÍA MENSUAL</small>
+                                                <span class="fs-5 fw-bold text-dark">$${CONFIG.MEMBERSHIP_PRICE_USD.toFixed(2)} USD</span>
+                                            </div>
+                                            <div class="col-6">
+                                                <small class="text-muted d-block fw-semibold" style="font-size: 0.75rem;">TASA OFICIAL BCV</small>
+                                                <span class="fs-5 fw-bold text-primary">Bs. ${CONFIG.DEFAULT_BCV_RATE.toFixed(2)}</span>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <!-- Unicos accesos permitidos -->
+                                    <div class="d-grid gap-2 col-md-10 mx-auto">
+                                        <button class="btn btn-success btn-lg py-2.5 fw-bold shadow-sm" onclick="User.openReportPaymentModal()"><i class="bi bi-credit-card-2-front me-2"></i> Declarar / Reportar Pago de Membresía</button>
+                                        <button class="btn btn-outline-warning text-dark py-2 fw-semibold" onclick="User.openReportIncidentModal()"><i class="bi bi-headset me-2"></i> Reportar Incidencia al Administrador</button>
+                                        <button class="btn btn-outline-secondary py-2" onclick="Auth.logout()"><i class="bi bi-box-arrow-right me-2"></i> Cerrar Sesión</button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
-                <button class="btn btn-sm btn-dark" onclick="User.openReportPaymentModal()"><i class="bi bi-credit-card me-1"></i> Reportar Pago</button>
+            `;
+            return;
+        }
+
+        // SISTEMA ACTIVO: Renderizar dashboard completo
+        container.innerHTML = `
+            <!-- Banner de Estado de Membresía con Barra de Progreso Animada y Código de Colores -->
+            <div class="card shadow-sm border-0 mb-3 bg-body-tertiary">
+                <div class="card-body p-3">
+                    <div class="d-flex flex-column flex-md-row align-items-md-center justify-content-between gap-3">
+                        <div class="d-flex align-items-center">
+                            <div class="fs-2 me-3 text-primary"><i class="bi bi-shield-check"></i></div>
+                            <div>
+                                <div class="d-flex align-items-center gap-2 mb-1">
+                                    <h6 class="fw-bold mb-0 text-dark">${status.label}</h6>
+                                    <span class="badge ${barClass}">Activo</span>
+                                </div>
+                                <small class="text-muted">Membresía Mensual: <strong>$${CONFIG.MEMBERSHIP_PRICE_USD.toFixed(2)} USD</strong> (Tasa Oficial BCV: Bs. ${CONFIG.DEFAULT_BCV_RATE.toFixed(2)})</small>
+                            </div>
+                        </div>
+
+                        <!-- Barra de Progreso de Tiempo Restante -->
+                        <div class="flex-grow-1 mx-md-3" style="max-width: 320px;">
+                            <div class="d-flex justify-content-between align-items-center mb-1">
+                                <small class="fw-bold text-dark"><i class="bi bi-clock-history text-primary me-1"></i> Restan <strong>${daysLeft}</strong> día${daysLeft !== 1 ? 's' : ''}</small>
+                                <small class="text-muted fw-semibold">${pct}%</small>
+                            </div>
+                            <div class="progress" style="height: 8px; background-color: rgba(0,0,0,0.1);" title="Vigencia Restante">
+                                <div class="progress-bar ${barClass} progress-bar-striped progress-bar-animated" role="progressbar" style="width: ${pct}%;" aria-valuenow="${pct}" aria-valuemin="0" aria-valuemax="100"></div>
+                            </div>
+                        </div>
+
+                        <div>
+                            <button class="btn btn-dark btn-sm fw-semibold text-nowrap" onclick="User.openReportPaymentModal()"><i class="bi bi-credit-card me-1"></i> Reportar Pago / Historial</button>
+                        </div>
+                    </div>
+                </div>
             </div>
+
+            <!-- Alerta de Vencimiento Próximo (si quedan 15 días o menos) -->
+            ${daysLeft <= 15 && daysLeft > 0 ? `
+                <div class="alert alert-warning border-warning shadow-sm py-2 px-3 mb-3 d-flex align-items-center justify-content-between">
+                    <div class="small fw-semibold text-dark">
+                        <i class="bi bi-exclamation-triangle-fill text-warning me-2 fs-5"></i>
+                        <strong>Aviso de Vencimiento:</strong> Tu servicio se está agotando (restan ${daysLeft} día${daysLeft !== 1 ? 's' : ''}). Te sugerimos realizar tu reporte de pago a tiempo para extender tu suscripción sin interrupciones.
+                    </div>
+                    <button class="btn btn-sm btn-outline-dark fw-bold py-1 px-2 text-nowrap ms-2" onclick="User.openReportPaymentModal()">Renovar Ahora</button>
+                </div>
+            ` : ''}
 
             ${Number(currentBiz.is_demo_active || 0) === 1 ? `
                 <!-- Banner de Modo Datos de Prueba Activo -->
@@ -1456,7 +1580,67 @@ class UserManager {
             this.handlePaymentMethodChange(methods[0].id);
         }
 
+        this.loadUserPaymentHistory();
         modal.show();
+    }
+
+    loadUserPaymentHistory() {
+        const tbody = document.getElementById("userPaymentHistoryTableBody");
+        if (!tbody) return;
+
+        const currentUserId = Auth.currentUser ? Auth.currentUser.id : "";
+        const currentUserEmail = Auth.currentUser ? (Auth.currentUser.email || "").toLowerCase() : "";
+        const allPayments = DB.getLocalTable("payments") || [];
+        const userPayments = allPayments.filter(p => 
+            p.user_id === currentUserId || 
+            (p.user_email && p.user_email.toLowerCase() === currentUserEmail)
+        );
+
+        userPayments.sort((a, b) => new Date(b.created_at || b.payment_date || 0) - new Date(a.created_at || a.payment_date || 0));
+
+        if (userPayments.length === 0) {
+            tbody.innerHTML = `<tr><td colspan="6" class="text-center text-muted py-4">No has registrado ningún reporte de pago aún.</td></tr>`;
+            return;
+        }
+
+        const methods = DB.getLocalTable("payment_methods") || [];
+
+        tbody.innerHTML = userPayments.map((p, i) => {
+            const m = methods.find(item => item.id === p.payment_method_id) || {};
+            const methodTitle = m.title || m.type || "Pago Directo";
+            const dateStr = p.payment_date || (p.created_at ? p.created_at.substring(0, 10) : "Reciente");
+            
+            let statusBadge = '<span class="badge bg-warning text-dark"><i class="bi bi-hourglass-split me-1"></i> Pendiente</span>';
+            if (p.status === "aprobado") {
+                statusBadge = '<span class="badge bg-success"><i class="bi bi-check-circle-fill me-1"></i> Aprobado</span>';
+            } else if (p.status === "rechazado") {
+                statusBadge = '<span class="badge bg-danger"><i class="bi bi-x-circle-fill me-1"></i> Rechazado</span>';
+            }
+
+            let coverageStr = '<span class="text-muted small">Por verificar</span>';
+            if (p.valid_from && p.valid_until) {
+                coverageStr = `<small class="fw-semibold text-dark"><i class="bi bi-calendar-check text-success me-1"></i> ${new Date(p.valid_from).toLocaleDateString()} - ${new Date(p.valid_until).toLocaleDateString()}</small>`;
+            } else if (p.status === "aprobado") {
+                coverageStr = `<small class="fw-semibold text-success">Membresía Extendida +30 Días</small>`;
+            }
+
+            return `
+                <tr>
+                    <td>${i + 1}</td>
+                    <td><i class="bi bi-calendar-event me-1 text-muted"></i> ${dateStr}</td>
+                    <td>
+                        <strong>${methodTitle}</strong><br>
+                        <small class="text-muted">Ref: <code>${p.reference_number || 'N/A'}</code> ${p.bank_origin ? '| ' + p.bank_origin : ''}</small>
+                    </td>
+                    <td>
+                        <strong>$${parseFloat(p.amount_usd || 10).toFixed(2)} USD</strong><br>
+                        <small class="text-muted">Bs. ${parseFloat(p.amount_ves || 0).toFixed(2)}</small>
+                    </td>
+                    <td>${statusBadge}</td>
+                    <td>${coverageStr}</td>
+                </tr>
+            `;
+        }).join("");
     }
 
     handlePaymentMethodChange(methodId) {
@@ -1526,6 +1710,7 @@ class UserManager {
         const newPayment = {
             id: "pay_" + Date.now(),
             user_id: Auth.currentUser ? Auth.currentUser.id : "",
+            user_email: Auth.currentUser ? Auth.currentUser.email : "",
             business_id: Auth.currentBusiness ? Auth.currentBusiness.id : "",
             payment_method_id: methodId,
             amount_usd: amountUsd,
@@ -1560,7 +1745,10 @@ class UserManager {
 
         bootstrap.Modal.getInstance(document.getElementById("modalReportPayment")).hide();
         form.reset();
-        alert("¡Comprobante de pago enviado con éxito! El Administrador revisará tu reporte y comprobante para verificar y activar tu membresía.");
+        AppUI.showAlert("Reporte Enviado", "¡Comprobante de pago enviado con éxito! El Administrador revisará tu reporte para verificar y activar tu membresía.", "success");
+        
+        // Re-renderizar app para actualizar vista en caso de estar en pantalla de bloqueo
+        AppUI.renderApp();
     }
 
     async saveBusinessProfile(event) {

@@ -594,27 +594,56 @@ class AdminManager {
         const idx = payments.findIndex(p => p.id === paymentId);
         if (idx < 0) return;
 
+        const now = new Date();
         payments[idx].status = newStatus;
-        payments[idx].verified_at = new Date().toISOString();
-        DB.setLocalTable("payments", payments);
+        payments[idx].verified_at = now.toISOString();
 
         if (newStatus === "aprobado") {
             const userId = payments[idx].user_id;
-            const users = DB.getLocalTable("users");
-            const uIdx = users.findIndex(u => u.id === userId);
-            if (uIdx >= 0) {
-                const currentExpire = users[uIdx].membership_expires_at ? new Date(users[uIdx].membership_expires_at) : new Date();
-                const baseDate = currentExpire > new Date() ? currentExpire : new Date();
+            const payEmail = payments[idx].user_email || "";
+            const targetUser = this.getUserById(userId) || (payEmail ? this.getUserById(payEmail) : null);
+
+            if (targetUser) {
+                const currentExpire = targetUser.membership_expires_at ? new Date(targetUser.membership_expires_at) : now;
+                const baseDate = (currentExpire > now) ? currentExpire : now;
                 const newExpire = new Date(baseDate.getTime() + 30 * 86400000);
-                users[uIdx].membership_expires_at = newExpire.toISOString();
-                DB.setLocalTable("users", users);
+                
+                const expIso = newExpire.toISOString();
+                payments[idx].valid_from = baseDate.toISOString();
+                payments[idx].valid_until = expIso;
+
+                this.updateUserInCacheAndStorage(targetUser.id, {
+                    membership_expires_at: expIso,
+                    membership_type: "comercial",
+                    is_active: 1
+                });
+
+                try {
+                    await DB.query(
+                        "UPDATE users SET membership_expires_at = ?, membership_type = 'comercial', is_active = 1 WHERE id = ?",
+                        [expIso, targetUser.id]
+                    );
+                } catch (e) {}
+
+                try {
+                    await DB.query(
+                        "UPDATE payments SET status = 'aprobado', verified_at = ?, valid_from = ?, valid_until = ? WHERE id = ?",
+                        [payments[idx].verified_at, payments[idx].valid_from, payments[idx].valid_until, paymentId]
+                    );
+                } catch (e) {}
             }
-            alert("¡Pago aprobado con éxito! La membresía del cliente ha sido extendida por 30 días.");
+
+            AppUI.showAlert("Pago Aprobado", "¡Pago aprobado con éxito! Se han sumado 30 días adicionales a la membresía del cliente.", "success");
         } else {
-            alert("El pago ha sido marcado como rechazado.");
+            try {
+                await DB.query("UPDATE payments SET status = 'rechazado', verified_at = ? WHERE id = ?", [payments[idx].verified_at, paymentId]);
+            } catch (e) {}
+            AppUI.showAlert("Pago Rechazado", "El reporte de pago ha sido marcado como rechazado.", "warning");
         }
 
-        this.loadAdminPaymentsTable();
+        DB.setLocalTable("payments", payments);
+        await this.loadAdminPaymentsTable();
+        await this.loadAdminUsersTable();
     }
 
     viewPaymentProof(paymentId) {

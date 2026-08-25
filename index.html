@@ -707,72 +707,108 @@
 
     <!-- 10. MODAL REPORTAR PAGO MEMBRESÍA -->
     <div class="modal fade" id="modalReportPayment" tabindex="-1" aria-hidden="true">
-        <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-dialog modal-lg modal-dialog-centered">
             <div class="modal-content">
                 <div class="modal-header bg-dark text-white">
-                    <h5 class="modal-title fw-bold"><i class="bi bi-credit-card me-2"></i> Reportar Pago de Membresía</h5>
+                    <h5 class="modal-title fw-bold"><i class="bi bi-credit-card me-2"></i> Reportar Pago de Membresía & Historial</h5>
                     <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
                 <div class="modal-body">
-                    <!-- Franja de Tarifas (USD / VES / BCV) -->
-                    <div class="alert alert-info border-0 shadow-sm mb-3">
-                        <div class="d-flex align-items-center justify-content-between">
-                            <div>
-                                <span class="small text-muted d-block fw-semibold text-uppercase" style="font-size: 0.75rem;">Costo de Membresía Mensual</span>
-                                <span class="fs-4 fw-bold text-dark" id="modalPaymentUsdBanner">$15.00 USD</span>
-                                <span class="fs-5 fw-bold text-primary ms-1" id="modalPaymentVesBanner">(Bs. 600.00)</span>
+                    <!-- Pestañas Internas del Modal de Pagos -->
+                    <ul class="nav nav-tabs mb-3" id="paymentModalTabs" role="tablist">
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link active fw-bold" id="tab-report-payment-link" data-bs-toggle="tab" data-bs-target="#tab-report-payment-pane" type="button" role="tab"><i class="bi bi-cash-coin me-1 text-success"></i> Declarar Pago</button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link fw-bold" id="tab-payment-history-link" data-bs-toggle="tab" data-bs-target="#tab-payment-history-pane" type="button" role="tab" onclick="User.loadUserPaymentHistory()"><i class="bi bi-receipt me-1 text-primary"></i> Historial de Pagos y Licencias</button>
+                        </li>
+                    </ul>
+
+                    <div class="tab-content" id="paymentModalTabContent">
+                        <!-- PESTAÑA 1: FORMULARIO DE DECLARACIÓN DE PAGO -->
+                        <div class="tab-pane fade show active" id="tab-report-payment-pane" role="tabpanel">
+                            <!-- Franja de Tarifas (USD / VES / BCV) -->
+                            <div class="alert alert-info border-0 shadow-sm mb-3">
+                                <div class="d-flex align-items-center justify-content-between">
+                                    <div>
+                                        <span class="small text-muted d-block fw-semibold text-uppercase" style="font-size: 0.75rem;">Costo de Membresía Mensual</span>
+                                        <span class="fs-4 fw-bold text-dark" id="modalPaymentUsdBanner">$10.00 USD</span>
+                                        <span class="fs-5 fw-bold text-primary ms-1" id="modalPaymentVesBanner">(Bs. 400.00)</span>
+                                    </div>
+                                    <div class="text-end">
+                                        <span class="badge bg-primary mb-1">Tasa Oficial BCV</span>
+                                        <div class="small fw-semibold text-dark" id="modalPaymentBcvBanner">1 USD = 40.00 Bs.</div>
+                                    </div>
+                                </div>
                             </div>
-                            <div class="text-end">
-                                <span class="badge bg-primary mb-1">Tasa Oficial BCV</span>
-                                <div class="small fw-semibold text-dark" id="modalPaymentBcvBanner">1 USD = 40.00 Bs.</div>
+
+                            <form onsubmit="User.saveReportPayment(event)">
+                                <div class="mb-3">
+                                    <label class="form-label fw-semibold">Forma de Pago Utilizada</label>
+                                    <select name="method_id" id="paymentMethodSelect" class="form-select" onchange="User.handlePaymentMethodChange(this.value)" required></select>
+                                </div>
+
+                                <!-- Caja Informativa con los Datos de Pago Seleccionados -->
+                                <div id="paymentMethodDetailsBox" class="card bg-light border-primary border-opacity-50 mb-3" style="display: none;">
+                                    <div class="card-body py-2 px-3 small" id="paymentMethodDetailsContent">
+                                        <!-- Se llena dinámicamente -->
+                                    </div>
+                                </div>
+
+                                <!-- Monto Transferido en Bolívares (Solo si el método es VES) -->
+                                <div id="vesAmountContainer" class="mb-3" style="display: none;">
+                                    <label class="form-label fw-semibold text-primary"><i class="bi bi-cash-stack me-1"></i> Monto Exacto Transferido (Bs.)</label>
+                                    <div class="input-group">
+                                        <span class="input-group-text bg-primary text-white fw-bold">Bs.</span>
+                                        <input type="number" step="0.01" min="0" name="amount_ves_input" id="paymentAmountVesInput" class="form-control fw-bold" placeholder="Ej: 600.00">
+                                    </div>
+                                    <div class="form-text small text-muted">Ingresa el monto exacto en Bolívares que transferiste.</div>
+                                </div>
+
+                                <div class="mb-3">
+                                    <label class="form-label fw-semibold">Número de Transferencia / Referencia</label>
+                                    <input type="text" name="reference_number" class="form-control" placeholder="Ej: 00984123" required>
+                                </div>
+                                <div class="row g-2 mb-3">
+                                    <div class="col-md-6">
+                                        <label class="form-label fw-semibold">Banco de Origen (si aplica)</label>
+                                        <input type="text" name="bank_origin" class="form-control" placeholder="Ej: Banesco">
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label class="form-label fw-semibold">Fecha del Pago</label>
+                                        <input type="date" name="payment_date" id="paymentReportDateInput" class="form-control" required>
+                                    </div>
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label fw-semibold text-primary"><i class="bi bi-camera me-1"></i> Adjuntar Capture / Comprobante (Imagen PNG o JPG)</label>
+                                    <input type="file" id="paymentProofFile" class="form-control" accept="image/png, image/jpeg, image/webp" required>
+                                    <div class="form-text small">Sube la captura de pantalla o foto de tu pago en formato de imagen (PNG, JPG o WEBP).</div>
+                                </div>
+                                <button type="submit" class="btn btn-success w-100 py-2 fs-6 fw-bold"><i class="bi bi-cloud-arrow-up me-1"></i> Enviar Reporte con Comprobante</button>
+                            </form>
+                        </div>
+
+                        <!-- PESTAÑA 2: HISTORIAL DE PAGOS Y LICENCIAS -->
+                        <div class="tab-pane fade" id="tab-payment-history-pane" role="tabpanel">
+                            <div class="table-responsive">
+                                <table class="table table-hover align-middle small">
+                                    <thead class="table-dark">
+                                        <tr>
+                                            <th>#</th>
+                                            <th>Fecha Reporte</th>
+                                            <th>Referencia / Banco</th>
+                                            <th>Monto</th>
+                                            <th>Estado</th>
+                                            <th>Cobertura / Vigencia</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="userPaymentHistoryTableBody">
+                                        <tr><td colspan="6" class="text-center text-muted py-3">Cargando historial de pagos...</td></tr>
+                                    </tbody>
+                                </table>
                             </div>
                         </div>
                     </div>
-
-                    <form onsubmit="User.saveReportPayment(event)">
-                        <div class="mb-3">
-                            <label class="form-label fw-semibold">Forma de Pago Utilizada</label>
-                            <select name="method_id" id="paymentMethodSelect" class="form-select" onchange="User.handlePaymentMethodChange(this.value)" required></select>
-                        </div>
-
-                        <!-- Caja Informativa con los Datos de Pago Seleccionados -->
-                        <div id="paymentMethodDetailsBox" class="card bg-light border-primary border-opacity-50 mb-3" style="display: none;">
-                            <div class="card-body py-2 px-3 small" id="paymentMethodDetailsContent">
-                                <!-- Se llena dinámicamente -->
-                            </div>
-                        </div>
-
-                        <!-- Monto Transferido en Bolívares (Solo si el método es VES) -->
-                        <div id="vesAmountContainer" class="mb-3" style="display: none;">
-                            <label class="form-label fw-semibold text-primary"><i class="bi bi-cash-stack me-1"></i> Monto Exacto Transferido (Bs.)</label>
-                            <div class="input-group">
-                                <span class="input-group-text bg-primary text-white fw-bold">Bs.</span>
-                                <input type="number" step="0.01" min="0" name="amount_ves_input" id="paymentAmountVesInput" class="form-control fw-bold" placeholder="Ej: 600.00">
-                            </div>
-                            <div class="form-text small text-muted">Ingresa el monto exacto en Bolívares que transferiste.</div>
-                        </div>
-
-                        <div class="mb-3">
-                            <label class="form-label fw-semibold">Número de Transferencia / Referencia</label>
-                            <input type="text" name="reference_number" class="form-control" placeholder="Ej: 00984123" required>
-                        </div>
-                        <div class="row g-2 mb-3">
-                            <div class="col-md-6">
-                                <label class="form-label fw-semibold">Banco de Origen (si aplica)</label>
-                                <input type="text" name="bank_origin" class="form-control" placeholder="Ej: Banesco">
-                            </div>
-                            <div class="col-md-6">
-                                <label class="form-label fw-semibold">Fecha del Pago</label>
-                                <input type="date" name="payment_date" id="paymentReportDateInput" class="form-control" required>
-                            </div>
-                        </div>
-                        <div class="mb-3">
-                            <label class="form-label fw-semibold text-primary"><i class="bi bi-camera me-1"></i> Adjuntar Capture / Comprobante (Imagen PNG o JPG)</label>
-                            <input type="file" id="paymentProofFile" class="form-control" accept="image/png, image/jpeg, image/webp" required>
-                            <div class="form-text small">Sube la captura de pantalla o foto de tu pago en formato de imagen (PNG, JPG o WEBP).</div>
-                        </div>
-                        <button type="submit" class="btn btn-success w-100 py-2 fs-6 fw-bold"><i class="bi bi-cloud-arrow-up me-1"></i> Enviar Reporte con Comprobante</button>
-                    </form>
                 </div>
             </div>
         </div>
@@ -1196,15 +1232,15 @@
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script>
 
     <!-- Scripts del Sistema -->
-    <script src="./js/config.js?v=1.5.0"></script>
-    <script src="./js/db.js?v=1.5.0"></script>
-    <script src="./js/storage.js?v=1.5.0"></script>
-    <script src="./js/pdf_reports.js?v=1.5.0"></script>
-    <script src="./js/import_export.js?v=1.5.0"></script>
-    <script src="./js/auth.js?v=1.5.0"></script>
-    <script src="./js/admin.js?v=1.5.0"></script>
-    <script src="./js/user.js?v=1.5.0"></script>
-    <script src="./js/presets.js?v=1.5.0"></script>
-    <script src="./js/app.js?v=1.5.0"></script>
+    <script src="./js/config.js?v=1.6.0"></script>
+    <script src="./js/db.js?v=1.6.0"></script>
+    <script src="./js/storage.js?v=1.6.0"></script>
+    <script src="./js/pdf_reports.js?v=1.6.0"></script>
+    <script src="./js/import_export.js?v=1.6.0"></script>
+    <script src="./js/auth.js?v=1.6.0"></script>
+    <script src="./js/admin.js?v=1.6.0"></script>
+    <script src="./js/user.js?v=1.6.0"></script>
+    <script src="./js/presets.js?v=1.6.0"></script>
+    <script src="./js/app.js?v=1.6.0"></script>
 </body>
 </html>
