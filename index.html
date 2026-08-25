@@ -33,16 +33,24 @@
     <style>
         /* Prevenir desbordamiento de menús desplegables en teléfonos móviles */
         @media (max-width: 991.98px) {
+            .navbar-collapse .dropdown-menu,
+            #mainNavbarContainer .dropdown-menu {
+                position: static !important;
+                float: none !important;
+                width: 100% !important;
+                max-width: 100% !important;
+                transform: none !important;
+                box-shadow: none !important;
+                border: 1px solid rgba(0,0,0,0.15) !important;
+                margin-top: 0.5rem !important;
+            }
             .dropdown-menu {
                 max-width: 92vw !important;
-                right: 0 !important;
-                left: auto !important;
-                transform: none !important;
-                overflow-x: hidden;
+                word-break: break-all !important;
             }
-            .navbar-nav .dropdown-menu {
-                position: absolute !important;
-                float: none !important;
+            .dropdown-header {
+                white-space: normal !important;
+                word-break: break-all !important;
             }
             .table-responsive {
                 max-width: 100%;
@@ -184,7 +192,7 @@
                     <form onsubmit="event.preventDefault(); Auth.loginStandard(this.email.value, this.password.value).then(r => { bootstrap.Modal.getInstance(document.getElementById('modalLogin')).hide(); AppUI.renderApp(); if(r.multiple) AppUI.openAccountSelectorModal(); }).catch(e => alert(e.message));">
                         <div class="mb-3">
                             <label class="form-label fw-semibold">Correo Electrónico</label>
-                            <input type="email" name="email" class="form-control" placeholder="herrejose@gmail.com" required>
+                            <input type="email" name="email" class="form-control" placeholder="usuario@gmail.com" required>
                         </div>
                         <div class="mb-3">
                             <label class="form-label fw-semibold">Clave de Acceso</label>
@@ -1232,15 +1240,15 @@
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script>
 
     <!-- Scripts del Sistema -->
-    <script src="./js/config.js?v=1.6.0"></script>
-    <script src="./js/db.js?v=1.6.0"></script>
-    <script src="./js/storage.js?v=1.6.0"></script>
-    <script src="./js/pdf_reports.js?v=1.6.0"></script>
-    <script src="./js/import_export.js?v=1.6.0"></script>
-    <script src="./js/auth.js?v=1.6.0"></script>
-    <script src="./js/admin.js?v=1.6.0"></script>
-    <script src="./js/user.js?v=1.6.0"></script>
-    <script src="./js/presets.js?v=1.6.0"></script>
-    <script src="./js/app.js?v=1.6.0"></script>
+    <script src="./js/config.js?v=1.7.0"></script>
+    <script src="./js/db.js?v=1.7.0"></script>
+    <script src="./js/storage.js?v=1.7.0"></script>
+    <script src="./js/pdf_reports.js?v=1.7.0"></script>
+    <script src="./js/import_export.js?v=1.7.0"></script>
+    <script src="./js/auth.js?v=1.7.0"></script>
+    <script src="./js/admin.js?v=1.7.0"></script>
+    <script src="./js/user.js?v=1.7.0"></script>
+    <script src="./js/presets.js?v=1.7.0"></script>
+    <script src="./js/app.js?v=1.7.0"></script>
 </body>
 </html>

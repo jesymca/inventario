@@ -279,10 +279,10 @@ class AppUIManager {
                                     <button class="btn btn-primary btn-sm dropdown-toggle d-flex align-items-center" type="button" data-bs-toggle="dropdown">
                                         <i class="bi bi-person-circle me-1"></i> ${user.name.split(' ')[0]}
                                     </button>
-                                    <ul class="dropdown-menu dropdown-menu-end shadow">
-                                        <li class="dropdown-header">${user.email}</li>
-                                        <li><hr class="dropdown-divider"></li>
-                                        <li><a class="dropdown-item text-danger" href="#" onclick="Auth.logout()"><i class="bi bi-box-arrow-right me-2"></i> Cerrar Sesión</a></li>
+                                    <ul class="dropdown-menu dropdown-menu-start dropdown-menu-lg-end shadow">
+                                        <li class="dropdown-header text-break py-1 px-3">${user.email}</li>
+                                        <li><hr class="dropdown-divider my-1"></li>
+                                        <li><a class="dropdown-item text-danger fw-semibold" href="#" onclick="Auth.logout()"><i class="bi bi-box-arrow-right me-2"></i> Cerrar Sesión</a></li>
                                     </ul>
                                 </div>
                             </div>
