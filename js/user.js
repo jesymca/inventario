@@ -1319,6 +1319,60 @@ class UserManager {
             '<option value="" disabled>No se encontraron clientes coincidentes</option>';
     }
 
+    openQuickClientModalFromSale() {
+        const modal = new bootstrap.Modal(document.getElementById("modalQuickClientFromSale"));
+        modal.show();
+    }
+
+    async saveQuickClientFromSale(event) {
+        event.preventDefault();
+        const form = event.target;
+        const identityCard = form.identity_card.value.trim();
+        const name = form.name.value.trim();
+        const phone = form.phone ? form.phone.value.trim() : "";
+        const address = form.address ? form.address.value.trim() : "";
+
+        if (!name) return alert("Por favor ingresa el nombre del cliente.");
+
+        const newCli = {
+            id: "cli_" + Date.now(),
+            business_id: Auth.currentBusiness.id,
+            identity_card: identityCard,
+            name: name,
+            phone: phone,
+            address: address,
+            created_at: new Date().toISOString()
+        };
+
+        await DB.query(
+            `INSERT INTO clients (id, business_id, identity_card, name, phone, address) VALUES (?, ?, ?, ?, ?, ?)`,
+            [newCli.id, newCli.business_id, newCli.identity_card, newCli.name, newCli.phone, newCli.address]
+        );
+        DB.setLocalRecord("clients", newCli);
+
+        const modalEl = document.getElementById("modalQuickClientFromSale");
+        const modalInstance = bootstrap.Modal.getInstance(modalEl);
+        if (modalInstance) modalInstance.hide();
+        form.reset();
+
+        this.loadClientsTable();
+
+        const clientSearch = document.getElementById("saleClientSearch");
+        if (clientSearch) clientSearch.value = "";
+
+        this.filterSaleClientsSelect("");
+        const clientSelect = document.getElementById("saleClientSelect");
+        if (clientSelect) {
+            clientSelect.value = newCli.id;
+        }
+
+        if (typeof AppUI !== 'undefined' && AppUI.showAlert) {
+            AppUI.showAlert("¡Cliente Registrado!", `El cliente "${name}" se creó exitosamente y quedó seleccionado para esta venta.`, "success");
+        } else {
+            alert(`¡Cliente "${name}" registrado y seleccionado exitosamente!`);
+        }
+    }
+
     filterSaleProductsSelect(query = "") {
         const productSelect = document.getElementById("saleProductSelect");
         if (!productSelect || !Auth.currentBusiness) return;
