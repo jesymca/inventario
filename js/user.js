@@ -1547,7 +1547,10 @@ class UserManager {
             business_id: Auth.currentBusiness.id,
             client_id: clientId,
             total_amount: totalAmount,
-            sale_date: new Date().toISOString()
+            total_amount_usd: totalAmount,
+            total_usd: totalAmount,
+            sale_date: new Date().toISOString(),
+            created_at: new Date().toISOString()
         };
 
         // Guardar venta principal

@@ -1726,6 +1726,52 @@ class AdminManager {
     // ==========================================
     // 📊 ANALÍTICA GENERAL Y VENTAS POR TIENDA
     // ==========================================
+    // Helper para obtener el total en USD de cualquier registro de venta
+    getSaleTotalUsd(s, saleItems = []) {
+        if (!s) return 0;
+        let usd = parseFloat(
+            s.total_amount !== undefined && s.total_amount !== null ? s.total_amount :
+            (s.total_amount_usd !== undefined && s.total_amount_usd !== null ? s.total_amount_usd :
+            (s.total_usd !== undefined && s.total_usd !== null ? s.total_usd :
+            (s.total_price !== undefined && s.total_price !== null ? s.total_price :
+            (s.total !== undefined && s.total !== null ? s.total : 0))))
+        );
+
+        if (!isNaN(usd) && usd > 0) return usd;
+
+        // Fallback: Sumar ítems de la venta si el total es 0 o indefinido
+        const items = (saleItems || this.cache.sale_items || []).filter(item => item.sale_id === s.id);
+        if (items.length > 0) {
+            let sum = 0;
+            items.forEach(it => {
+                const qty = parseFloat(it.quantity || 1);
+                const price = parseFloat(it.unit_price || it.price || 0);
+                if (!isNaN(qty) && !isNaN(price)) {
+                    sum += (qty * price);
+                }
+            });
+            if (sum > 0) return sum;
+        }
+
+        return 0;
+    }
+
+    // Helper para obtener el nombre del cliente de una venta
+    getClientNameForSale(s) {
+        if (!s) return "Cliente de Contado";
+        if (s.client_name && s.client_name.trim()) return s.client_name;
+
+        const clients = this.cache.clients || DB.getLocalTable("clients") || [];
+        if (s.client_id) {
+            const c = clients.find(cl => cl.id === s.client_id);
+            if (c && c.name) return c.name + (c.identification ? " (" + c.identification + ")" : "");
+        }
+        return "Cliente de Contado";
+    }
+
+    // ==========================================
+    // 📊 ANALÍTICA GENERAL Y VENTAS POR TIENDA
+    // ==========================================
 
     async loadAdminSalesAnalytics() {
         const container = document.getElementById("adminSalesAnalyticsContainer");
@@ -1734,6 +1780,7 @@ class AdminManager {
         await this.fetchAllAdminData();
 
         const sales = this.cache.sales || [];
+        const saleItems = this.cache.sale_items || [];
         const bcvRate = CONFIG.DEFAULT_BCV_RATE;
 
         let totalSalesCount = sales.length;
@@ -1745,7 +1792,7 @@ class AdminManager {
         const currentYearMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
 
         sales.forEach(s => {
-            const usd = parseFloat(s.total_amount_usd || s.total_usd || 0);
+            const usd = this.getSaleTotalUsd(s, saleItems);
             totalSalesUsd += usd;
 
             const saleDate = s.created_at || s.sale_date || "";
@@ -1852,6 +1899,7 @@ class AdminManager {
         if (!tbody) return;
 
         const sales = this.cache.sales || [];
+        const saleItems = this.cache.sale_items || [];
         const businesses = this.cache.businesses || [];
         const users = this.cache.users || [];
         const bcvRate = CONFIG.DEFAULT_BCV_RATE;
@@ -1878,7 +1926,7 @@ class AdminManager {
                 storeStats.set(bizId, stat);
             }
             stat.count++;
-            const usd = parseFloat(s.total_amount_usd || s.total_usd || 0);
+            const usd = this.getSaleTotalUsd(s, saleItems);
             stat.totalUsd += usd;
 
             const d = new Date(s.created_at || s.sale_date || 0);
@@ -1969,7 +2017,7 @@ class AdminManager {
         if (titleEl) titleEl.textContent = `Comercio: ${biz.name}`;
         if (ownerEl) ownerEl.textContent = `Propietario: ${owner.name || 'N/A'} (${owner.email || biz.email || 'N/A'})`;
 
-        const totalUsd = this._currentModalBizSales.reduce((sum, s) => sum + parseFloat(s.total_amount_usd || s.total_usd || 0), 0);
+        const totalUsd = this._currentModalBizSales.reduce((sum, s) => sum + this.getSaleTotalUsd(s, saleItems), 0);
         if (totalAmountEl) totalAmountEl.textContent = `$${totalUsd.toFixed(2)} USD (Bs. ${(totalUsd * bcvRate).toFixed(2)})`;
         if (totalCountEl) totalCountEl.textContent = `${this._currentModalBizSales.length} Ventas Registradas`;
 
@@ -1985,16 +2033,18 @@ class AdminManager {
 
         const sales = this._currentModalBizSales || [];
         const saleItems = this._currentModalBizSalesItems || [];
+        const products = this.cache.products || DB.getLocalTable("products") || [];
         const bcvRate = CONFIG.DEFAULT_BCV_RATE;
 
         let filtered = sales;
         if (query && query.trim()) {
             const q = query.trim().toLowerCase();
-            filtered = sales.filter(s => 
-                (s.client_name && s.client_name.toLowerCase().includes(q)) ||
-                (s.reference_number && s.reference_number.toLowerCase().includes(q)) ||
-                (s.id && s.id.toLowerCase().includes(q))
-            );
+            filtered = sales.filter(s => {
+                const clientName = this.getClientNameForSale(s).toLowerCase();
+                return clientName.includes(q) ||
+                    (s.reference_number && s.reference_number.toLowerCase().includes(q)) ||
+                    (s.id && s.id.toLowerCase().includes(q));
+            });
         }
 
         filtered.sort((a, b) => new Date(b.created_at || b.sale_date || 0) - new Date(a.created_at || a.sale_date || 0));
@@ -2007,18 +2057,25 @@ class AdminManager {
         tbody.innerHTML = filtered.map((s, i) => {
             const items = saleItems.filter(item => item.sale_id === s.id);
             const itemsHtml = items.length > 0
-                ? items.map(it => `<div class="small">• <strong>${it.product_name || 'Producto'}</strong> x${it.quantity} ($${parseFloat(it.unit_price || 0).toFixed(2)})</div>`).join("")
+                ? items.map(it => {
+                    const p = products.find(prod => prod.id === it.product_id) || {};
+                    const pName = it.product_name || p.name || 'Producto';
+                    const qty = parseFloat(it.quantity || 1);
+                    const price = parseFloat(it.unit_price || it.price || p.price || 0);
+                    return `<div class="small">• <strong>${pName}</strong> x${qty} ($${price.toFixed(2)})</div>`;
+                }).join("")
                 : '<span class="text-muted small">Sin detalle de productos</span>';
 
+            const clientName = this.getClientNameForSale(s);
             const dateStr = s.created_at || s.sale_date ? new Date(s.created_at || s.sale_date).toLocaleString() : "Fecha N/A";
-            const usd = parseFloat(s.total_amount_usd || s.total_usd || 0);
-            const ves = parseFloat(s.total_amount_ves || s.total_ves || (usd * bcvRate));
+            const usd = this.getSaleTotalUsd(s, saleItems);
+            const ves = usd * bcvRate;
 
             return `
                 <tr>
                     <td><code>${s.id}</code></td>
                     <td><small class="text-muted"><i class="bi bi-calendar-event me-1"></i> ${dateStr}</small></td>
-                    <td class="fw-semibold">${s.client_name || 'Cliente de Contado'}</td>
+                    <td class="fw-semibold text-dark">${clientName}</td>
                     <td>${itemsHtml}</td>
                     <td><span class="badge bg-light text-dark border">${s.payment_method || 'Efectivo / Transferencia'}</span></td>
                     <td><strong class="text-success">$${usd.toFixed(2)} USD</strong></td>
