@@ -1485,16 +1485,16 @@ class AdminManager {
         const badge = document.getElementById("statusR2Storage");
         if (!badge) return;
         badge.className = 'badge bg-warning text-dark p-2';
-        badge.innerHTML = `<i class="bi bi-hourglass-split me-1"></i> Verificando servicio...`;
+        badge.innerHTML = `<i class="bi bi-hourglass-split me-1"></i> Verificando servicio R2...`;
 
         try {
-            // Intenta un HEAD request al endpoint de R2 para verificar conectividad
-            const endpoint = CONFIG.CLOUDFLARE_R2 ? CONFIG.CLOUDFLARE_R2.endpoint : null;
-            if (endpoint) {
+            const isAlive = await Storage.testR2Connection();
+            if (isAlive) {
                 badge.className = 'badge bg-success p-2';
-                badge.innerHTML = `<i class="bi bi-check-circle me-1"></i> Cloudflare R2 Configurado (${CONFIG.CLOUDFLARE_R2.bucketName})`;
+                badge.innerHTML = `<i class="bi bi-check-circle me-1"></i> Cloudflare R2 Conectado (${CONFIG.CLOUDFLARE_R2.bucketName})`;
             } else {
-                throw new Error("Sin configuración de R2");
+                badge.className = 'badge bg-info text-dark p-2';
+                badge.innerHTML = `<i class="bi bi-cloud-upload me-1"></i> Cloudflare R2 Configurado (${CONFIG.CLOUDFLARE_R2.bucketName})`;
             }
         } catch (e) {
             badge.className = 'badge bg-danger p-2';

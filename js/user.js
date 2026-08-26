@@ -872,7 +872,8 @@ class UserManager {
         let imageUrl = null;
 
         if (fileInput && fileInput.files[0]) {
-            imageUrl = await Storage.uploadImage(fileInput.files[0]);
+            const bizId = Auth.currentBusiness ? Auth.currentBusiness.id : "global";
+            imageUrl = await Storage.uploadImage(fileInput.files[0], "products", bizId);
         }
 
         const bcvRate = CONFIG.DEFAULT_BCV_RATE || 1;
@@ -968,13 +969,17 @@ class UserManager {
         const fileInput = form.querySelector('input[type="file"]');
         let imageUrl = null;
 
-        if (fileInput && fileInput.files[0]) {
-            imageUrl = await Storage.uploadImage(fileInput.files[0]);
-        }
-
         const products = DB.getLocalTable("products");
         const idx = products.findIndex(p => p.id === productId);
         if (idx < 0) return alert("Producto no encontrado.");
+
+        if (fileInput && fileInput.files[0]) {
+            const bizId = Auth.currentBusiness ? Auth.currentBusiness.id : "global";
+            if (products[idx].image_url) {
+                await Storage.deleteImage(products[idx].image_url);
+            }
+            imageUrl = await Storage.uploadImage(fileInput.files[0], "products", bizId);
+        }
 
         const bcvRate = CONFIG.DEFAULT_BCV_RATE || 1;
         const presentation = form.presentation ? form.presentation.value : 'Unidad';
@@ -2019,7 +2024,8 @@ class UserManager {
         let proofUrl = "";
 
         if (proofInput && proofInput.files && proofInput.files[0]) {
-            proofUrl = await Storage.uploadImage(proofInput.files[0]);
+            const userId = Auth.currentUser ? Auth.currentUser.id : "global";
+            proofUrl = await Storage.uploadImage(proofInput.files[0], "payments", userId);
         }
 
         const methods = DB.getLocalTable("payment_methods");
@@ -2144,7 +2150,12 @@ class UserManager {
         const file = event.target.files[0];
         if (!file || !Auth.currentBusiness) return;
 
-        const logoUrl = await Storage.uploadImage(file);
+        if (Auth.currentBusiness.logo_url) {
+            await Storage.deleteImage(Auth.currentBusiness.logo_url);
+        }
+
+        const bizId = Auth.currentBusiness.id;
+        const logoUrl = await Storage.uploadImage(file, "logos", bizId);
         if (logoUrl) {
             const businesses = DB.getLocalTable("businesses");
             const idx = businesses.findIndex(b => b.id === Auth.currentBusiness.id);
@@ -2154,7 +2165,7 @@ class UserManager {
                 DB.setLocalTable("businesses", businesses);
                 Auth.currentBusiness = businesses[idx];
                 sessionStorage.setItem("inv_current_biz", JSON.stringify(businesses[idx]));
-                AppUI.showAlert("Logo Actualizado", "¡Logo actualizado con éxito!", "success");
+                AppUI.showAlert("Logo Actualizado", "¡Logo actualizado con éxito en Cloudflare R2!", "success");
                 AppUI.renderApp();
             }
         }
