@@ -151,23 +151,28 @@ class PresetsManager {
         const preset = PRESETS_DATA[presetKey];
         if (!preset) return;
 
-        // Actualizar datos del negocio
-        const bizUpdate = {
-            name: preset.name,
-            category_preset: presetKey,
-            branding_color: preset.color
-        };
+        const currentBiz = Auth.currentBusiness;
+        // Preservar el nombre personalizado configurado por el usuario
+        const finalName = (currentBiz && currentBiz.name && currentBiz.name.trim()) ? currentBiz.name : preset.name;
 
         await DB.query(
             "UPDATE businesses SET name = ?, category_preset = ?, branding_color = ? WHERE id = ?",
-            [bizUpdate.name, bizUpdate.category_preset, bizUpdate.branding_color, businessId]
+            [finalName, presetKey, preset.color, businessId]
         );
 
-        const currentBiz = Auth.currentBusiness;
         if (currentBiz) {
-            currentBiz.name = preset.name;
+            currentBiz.name = finalName;
             currentBiz.category_preset = presetKey;
             currentBiz.branding_color = preset.color;
+
+            const businesses = DB.getLocalTable("businesses");
+            const idx = businesses.findIndex(b => b.id === businessId);
+            if (idx >= 0) {
+                businesses[idx].name = finalName;
+                businesses[idx].category_preset = presetKey;
+                businesses[idx].branding_color = preset.color;
+                DB.setLocalTable("businesses", businesses);
+            }
             Auth.saveSession(Auth.currentUser, currentBiz);
         }
     }

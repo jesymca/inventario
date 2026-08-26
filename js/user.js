@@ -1006,7 +1006,7 @@ class UserManager {
         DB.setLocalTable("products", products);
 
         bootstrap.Modal.getInstance(document.getElementById("modalEditProduct")).hide();
-        alert("¡Producto actualizado con éxito!");
+        AppUI.showAlert("Producto Actualizado", "¡Producto actualizado con éxito!", "success");
         this.loadProductsTable();
     }
 
@@ -1122,7 +1122,7 @@ class UserManager {
         DB.setLocalTable("clients", clients);
 
         bootstrap.Modal.getInstance(document.getElementById("modalEditClient")).hide();
-        alert("¡Cliente actualizado con éxito!");
+        AppUI.showAlert("Cliente Actualizado", "¡Cliente actualizado con éxito!", "success");
         this.loadClientsTable();
     }
 
@@ -1247,7 +1247,7 @@ class UserManager {
         DB.setLocalTable("suppliers", suppliers);
 
         bootstrap.Modal.getInstance(document.getElementById("modalEditSupplier")).hide();
-        alert("¡Proveedor actualizado con éxito!");
+        AppUI.showAlert("Proveedor Actualizado", "¡Proveedor actualizado con éxito!", "success");
         this.loadSuppliersTable();
     }
 
@@ -1582,7 +1582,7 @@ class UserManager {
         bootstrap.Modal.getInstance(document.getElementById("modalNewSale")).hide();
         form.reset();
         this.saleCartItems = [];
-        alert("¡Venta realizada con éxito! El inventario ha sido actualizado para todos los productos.");
+        AppUI.showAlert("Venta Registrada", "¡Venta realizada con éxito! El inventario ha sido actualizado para todos los productos.", "success");
         this.loadSalesTable();
         this.loadProductsTable();
     }
@@ -1828,7 +1828,7 @@ class UserManager {
         bootstrap.Modal.getInstance(document.getElementById("modalNewPurchase")).hide();
         form.reset();
         this.purchaseCartItems = [];
-        alert("¡Compra registrada! El stock y costo de los productos han sido incrementados.");
+        AppUI.showAlert("Compra Registrada", "¡Compra registrada! El stock y costo de los productos han sido incrementados.", "success");
         this.loadPurchasesTable();
         this.loadProductsTable();
     }
@@ -2035,36 +2035,59 @@ class UserManager {
         const form = event.target;
         const bizId = Auth.currentBusiness.id;
 
+        const name = form.name ? form.name.value.trim() : Auth.currentBusiness.name;
+        const rif = form.rif ? form.rif.value.trim() : (Auth.currentBusiness.rif || "");
+        const phone = form.phone ? form.phone.value.trim() : (Auth.currentBusiness.phone || "");
+        const email = form.email ? form.email.value.trim() : (Auth.currentBusiness.email || "");
+        const address = form.address ? form.address.value.trim() : (Auth.currentBusiness.address || "");
+        const website = form.website ? form.website.value.trim() : (Auth.currentBusiness.website || "");
+        const brandingColor = form.branding_color ? form.branding_color.value : (Auth.currentBusiness.branding_color || "#0d6efd");
+        const pdfHeader = form.pdf_header_text ? form.pdf_header_text.value.trim() : "";
+        const pdfFooter = form.pdf_footer_text ? form.pdf_footer_text.value.trim() : "";
+
         const businesses = DB.getLocalTable("businesses");
         const idx = businesses.findIndex(b => b.id === bizId);
         if (idx >= 0) {
-            businesses[idx].name = form.name.value;
-            businesses[idx].phone = form.phone.value;
-            businesses[idx].email = form.email.value;
-            businesses[idx].address = form.address.value;
-            businesses[idx].website = form.website.value;
-            businesses[idx].branding_color = form.branding_color.value;
-            businesses[idx].pdf_header_text = form.pdf_header_text ? form.pdf_header_text.value : "";
-            businesses[idx].pdf_footer_text = form.pdf_footer_text ? form.pdf_footer_text.value : "";
+            businesses[idx].name = name;
+            businesses[idx].rif = rif;
+            businesses[idx].phone = phone;
+            businesses[idx].email = email;
+            businesses[idx].address = address;
+            businesses[idx].website = website;
+            businesses[idx].branding_color = brandingColor;
+            businesses[idx].pdf_header_text = pdfHeader;
+            businesses[idx].pdf_footer_text = pdfFooter;
 
             try {
                 await DB.query(
-                    `UPDATE businesses SET name = ?, phone = ?, email = ?, address = ?, website = ?, branding_color = ?, pdf_header_text = ?, pdf_footer_text = ? WHERE id = ?`,
-                    [businesses[idx].name, businesses[idx].phone, businesses[idx].email, businesses[idx].address, businesses[idx].website, businesses[idx].branding_color, businesses[idx].pdf_header_text, businesses[idx].pdf_footer_text, bizId]
+                    `UPDATE businesses SET name = ?, rif = ?, phone = ?, email = ?, address = ?, website = ?, branding_color = ?, pdf_header_text = ?, pdf_footer_text = ? WHERE id = ?`,
+                    [name, rif, phone, email, address, website, brandingColor, pdfHeader, pdfFooter, bizId]
                 );
             } catch (e) {
-                await DB.query(
-                    `UPDATE businesses SET name = ?, phone = ?, email = ?, address = ?, website = ?, branding_color = ? WHERE id = ?`,
-                    [businesses[idx].name, businesses[idx].phone, businesses[idx].email, businesses[idx].address, businesses[idx].website, businesses[idx].branding_color, bizId]
-                );
+                try {
+                    await DB.query(`ALTER TABLE businesses ADD COLUMN rif TEXT`).catch(() => {});
+                    await DB.query(`ALTER TABLE businesses ADD COLUMN pdf_header_text TEXT`).catch(() => {});
+                    await DB.query(`ALTER TABLE businesses ADD COLUMN pdf_footer_text TEXT`).catch(() => {});
+                    await DB.query(
+                        `UPDATE businesses SET name = ?, rif = ?, phone = ?, email = ?, address = ?, website = ?, branding_color = ?, pdf_header_text = ?, pdf_footer_text = ? WHERE id = ?`,
+                        [name, rif, phone, email, address, website, brandingColor, pdfHeader, pdfFooter, bizId]
+                    );
+                } catch (err) {
+                    await DB.query(
+                        `UPDATE businesses SET name = ?, phone = ?, email = ?, address = ?, website = ?, branding_color = ? WHERE id = ?`,
+                        [name, phone, email, address, website, brandingColor, bizId]
+                    );
+                }
             }
 
             DB.setLocalTable("businesses", businesses);
             Auth.currentBusiness = businesses[idx];
-            sessionStorage.setItem("inv_current_biz", JSON.stringify(businesses[idx]));
+            Auth.saveSession(Auth.currentUser, businesses[idx]);
         }
 
-        alert("¡Perfil del negocio y preferencias de PDF actualizadas con éxito!");
+        if (typeof AppUI !== 'undefined' && AppUI.showAlert) {
+            AppUI.showAlert("Perfil Actualizado", "¡Los datos de tu negocio y la configuración de reportes PDF han sido guardados con éxito!", "success");
+        }
         AppUI.renderApp();
     }
 
@@ -2082,7 +2105,7 @@ class UserManager {
                 DB.setLocalTable("businesses", businesses);
                 Auth.currentBusiness = businesses[idx];
                 sessionStorage.setItem("inv_current_biz", JSON.stringify(businesses[idx]));
-                alert("¡Logo actualizado con éxito!");
+                AppUI.showAlert("Logo Actualizado", "¡Logo actualizado con éxito!", "success");
                 AppUI.renderApp();
             }
         }
@@ -2109,7 +2132,7 @@ class UserManager {
         DB.setLocalRecord("user_business_roles", newRole);
 
         document.getElementById("delegatedAdminEmail").value = "";
-        alert(`¡Usuario ${email} agregado como Administrador Delegado!`);
+        AppUI.showAlert("Administrador Delegado", `¡Usuario ${email} agregado como Administrador Delegado!`, "success");
         this.loadDelegatedAdminsList();
     }
 
