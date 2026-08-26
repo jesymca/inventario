@@ -160,5 +160,40 @@ const CONFIG = {
             holder_name: "José Herrera",
             is_active: 1
         }
+    ],
+
+    // Bancos Oficiales de Venezuela
+    DEFAULT_BANKS: [
+        "100% Banco",
+        "Bancamiga",
+        "Banco Activo",
+        "Banco Agrícola de Venezuela",
+        "Banco Caroní",
+        "Banco de Comercio Exterior (BANCOEX)",
+        "Banco de Desarrollo Económico y Social de Venezuela (BANDES)",
+        "Banco de la Fuerza Armada Nacional Bolivariana (BANFANB)",
+        "Banco de la Gente Emprendedora (Bangente)",
+        "Banco de Venezuela",
+        "Banco del Caribe (Bancaribe)",
+        "Banco del Tesoro",
+        "Banco Digital de los Trabajadores",
+        "Banco Exterior",
+        "Banco Internacional de Desarrollo",
+        "Banco Nacional de Crédito (BNC)",
+        "Banco Nacional de Vivienda y Hábitat (BANAVIH)",
+        "Banco Occidental de Descuento (BOD)",
+        "Banco Plaza",
+        "Banco Provincial",
+        "Banco Sofitasa",
+        "Bancrecer",
+        "Banesco",
+        "Banplus",
+        "BFC Banco Fondo Común",
+        "Del Sur Banco Universal",
+        "Instituto Municipal de Crédito Popular (IMCP)",
+        "Mercantil",
+        "N58 Banco Digital",
+        "R4 Banco Microfinanciero",
+        "Venezolano de Crédito"
     ]
 };

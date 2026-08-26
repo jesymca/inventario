@@ -1858,12 +1858,40 @@ class UserManager {
 
         methodSelect.innerHTML = methods.map((m, i) => `<option value="${m.id}" ${i === 0 ? 'selected' : ''}>${m.title} (${m.currency})</option>`).join("");
         
+        this.populateBankSelect();
+
         if (methods.length > 0) {
             this.handlePaymentMethodChange(methods[0].id);
         }
 
         this.loadUserPaymentHistory();
         modal.show();
+    }
+
+    populateBankSelect(query = "") {
+        const select = document.getElementById("bankOriginSelect");
+        if (!select) return;
+
+        const allBanks = DB.getLocalTable("banks") || [];
+        const activeBanks = allBanks.filter(b => Number(b.is_active) === 1);
+
+        let filtered = activeBanks;
+        if (query && query.trim()) {
+            const q = query.trim().toLowerCase();
+            filtered = activeBanks.filter(b => b.name.toLowerCase().includes(q));
+        }
+
+        if (filtered.length === 0) {
+            select.innerHTML = `<option value="">Sin resultados ("${query}")</option>`;
+            return;
+        }
+
+        select.innerHTML = `<option value="">-- Seleccionar Banco de Origen --</option>` +
+            filtered.map(b => `<option value="${b.name}">${b.name}</option>`).join("");
+    }
+
+    filterBankSelect(query) {
+        this.populateBankSelect(query);
     }
 
     loadUserPaymentHistory() {
@@ -1932,6 +1960,8 @@ class UserManager {
         const detailsContent = document.getElementById("paymentMethodDetailsContent");
         const vesContainer = document.getElementById("vesAmountContainer");
         const vesInput = document.getElementById("paymentAmountVesInput");
+        const bankContainer = document.getElementById("bankOriginContainer");
+        const bankSelect = document.getElementById("bankOriginSelect");
 
         if (!method) return;
 
@@ -1952,17 +1982,28 @@ class UserManager {
             detailsContent.innerHTML = html;
         }
 
-        // Mostrar/Ocultar campo de monto en Bolívares según la moneda
-        if (vesContainer && vesInput) {
-            if (method.currency === "VES") {
+        // Mostrar/Ocultar campo de monto en Bolívares y Banco de Origen según la moneda
+        if (method.currency === "VES") {
+            if (vesContainer && vesInput) {
                 vesContainer.style.display = "block";
                 const expectedVes = (CONFIG.MEMBERSHIP_PRICE_USD * CONFIG.DEFAULT_BCV_RATE).toFixed(2);
                 vesInput.value = expectedVes;
                 vesInput.required = true;
-            } else {
+            }
+            if (bankContainer) {
+                bankContainer.style.display = "block";
+                this.populateBankSelect();
+            }
+        } else {
+            // Pagos en USD (Zelle, Binance, USDT, Zinli, etc): Ocultar monto VES y Ocultar Banco de Origen
+            if (vesContainer && vesInput) {
                 vesContainer.style.display = "none";
                 vesInput.value = "";
                 vesInput.required = false;
+            }
+            if (bankContainer) {
+                bankContainer.style.display = "none";
+                if (bankSelect) bankSelect.value = "";
             }
         }
     }

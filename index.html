@@ -965,9 +965,10 @@
                                     <input type="text" name="reference_number" class="form-control" placeholder="Ej: 00984123" required>
                                 </div>
                                 <div class="row g-2 mb-3">
-                                    <div class="col-md-6">
-                                        <label class="form-label fw-semibold">Banco de Origen (si aplica)</label>
-                                        <input type="text" name="bank_origin" class="form-control" placeholder="Ej: Banesco">
+                                    <div class="col-md-6" id="bankOriginContainer">
+                                        <label class="form-label fw-semibold text-primary"><i class="bi bi-bank me-1"></i> Banco de Origen (Pagos en VES)</label>
+                                        <input type="text" id="bankSearchInput" class="form-control form-control-sm mb-1" placeholder="🔍 Buscar banco (Ej: Banesco)..." oninput="User.filterBankSelect(this.value)">
+                                        <select name="bank_origin" id="bankOriginSelect" class="form-select"></select>
                                     </div>
                                     <div class="col-md-6">
                                         <label class="form-label fw-semibold">Fecha del Pago</label>
@@ -1444,19 +1445,96 @@
         </div>
     </div>
 
+    <!-- MODAL AGREGAR / EDITAR BANCO VENEZOLANO (SUPER ADMIN) -->
+    <div class="modal fade" id="modalAdminAddEditBank" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header bg-dark text-white">
+                    <h5 class="modal-title fw-bold" id="modalAdminBankTitle"><i class="bi bi-bank2 me-2"></i> Agregar Banco Venezolano</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <form onsubmit="Admin.saveAdminBank(event)">
+                        <input type="hidden" id="adminBankIdInput">
+                        <div class="mb-3">
+                            <label class="form-label fw-semibold">Nombre Oficial del Banco</label>
+                            <input type="text" id="adminBankNameInput" class="form-control" placeholder="Ej: Banco de Venezuela" required>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label fw-semibold">Estado del Banco</label>
+                            <select id="adminBankStatusInput" class="form-select">
+                                <option value="1">Activo (Disponible en formulario de pagos)</option>
+                                <option value="0">Inactivo (Oculto)</option>
+                            </select>
+                        </div>
+                        <button type="submit" class="btn btn-success w-100 fw-bold"><i class="bi bi-save me-1"></i> Guardar Banco</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL DETALLE DE VENTAS DE TIENDA (SUPER ADMIN) -->
+    <div class="modal fade" id="modalAdminBusinessSalesDetail" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-xl modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header bg-primary text-white">
+                    <h5 class="modal-title fw-bold" id="modalAdminStoreSalesTitle"><i class="bi bi-shop me-2"></i> Detalle de Ventas Gestionadas por Tienda</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <div>
+                            <h6 class="fw-bold mb-0 text-dark" id="adminStoreSalesName">Comercio: -</h6>
+                            <small class="text-muted" id="adminStoreSalesOwner">Propietario: -</small>
+                        </div>
+                        <div class="text-end">
+                            <span class="badge bg-success fs-6" id="adminStoreSalesTotalAmount">$0.00 USD</span>
+                            <div class="small text-muted" id="adminStoreSalesTotalCount">0 Ventas Registradas</div>
+                        </div>
+                    </div>
+
+                    <div class="input-group input-group-sm mb-3">
+                        <span class="input-group-text bg-light"><i class="bi bi-search"></i></span>
+                        <input type="text" id="adminStoreSalesFilterInput" class="form-control" placeholder="Filtrar por cliente, nro comprobante..." oninput="Admin.filterStoreSalesDetailTable(this.value)">
+                    </div>
+
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle small">
+                            <thead class="table-dark">
+                                <tr>
+                                    <th># Venta</th>
+                                    <th>Fecha y Hora</th>
+                                    <th>Cliente</th>
+                                    <th>Productos / Detalle</th>
+                                    <th>Método de Pago</th>
+                                    <th>Monto Total ($ USD)</th>
+                                    <th>Monto Total (Bs.)</th>
+                                </tr>
+                            </thead>
+                            <tbody id="adminStoreSalesDetailTableBody">
+                                <tr><td colspan="7" class="text-center text-muted py-3">Selecciona una tienda para ver su historial de ventas...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Bootstrap 5.3 JS Bundle (CDN) -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script>
 
     <!-- Scripts del Sistema -->
-    <script src="./js/config.js?v=1.9.9"></script>
-    <script src="./js/db.js?v=1.9.9"></script>
-    <script src="./js/storage.js?v=1.9.9"></script>
-    <script src="./js/pdf_reports.js?v=1.9.9"></script>
-    <script src="./js/import_export.js?v=1.9.9"></script>
-    <script src="./js/auth.js?v=1.9.9"></script>
-    <script src="./js/admin.js?v=1.9.9"></script>
-    <script src="./js/user.js?v=1.9.9"></script>
-    <script src="./js/presets.js?v=1.9.9"></script>
-    <script src="./js/app.js?v=1.9.9"></script>
+    <script src="./js/config.js?v=2.0.0"></script>
+    <script src="./js/db.js?v=2.0.0"></script>
+    <script src="./js/storage.js?v=2.0.0"></script>
+    <script src="./js/pdf_reports.js?v=2.0.0"></script>
+    <script src="./js/import_export.js?v=2.0.0"></script>
+    <script src="./js/auth.js?v=2.0.0"></script>
+    <script src="./js/admin.js?v=2.0.0"></script>
+    <script src="./js/user.js?v=2.0.0"></script>
+    <script src="./js/presets.js?v=2.0.0"></script>
+    <script src="./js/app.js?v=2.0.0"></script>
 </body>
 </html>

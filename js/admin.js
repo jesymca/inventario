@@ -8,16 +8,20 @@ class AdminManager {
         this.businessesSearchQuery = "";
         this.usersSearchQuery = "";
         this.productsSearchQuery = "";
-        this.cache = { users: [], businesses: [], products: [], payments: [] };
+        this.banksSearchQuery = "";
+        this.cache = { users: [], businesses: [], products: [], payments: [], sales: [], sale_items: [], banks: [] };
     }
 
     async fetchAllAdminData() {
         try {
-            const [bizRes, usrRes, payRes, prodRes] = await Promise.all([
+            const [bizRes, usrRes, payRes, prodRes, salesRes, itemsRes, bankRes] = await Promise.all([
                 DB.query("SELECT * FROM businesses").catch(() => null),
                 DB.query("SELECT * FROM users").catch(() => null),
                 DB.query("SELECT * FROM payments").catch(() => null),
-                DB.query("SELECT * FROM products").catch(() => null)
+                DB.query("SELECT * FROM products").catch(() => null),
+                DB.query("SELECT * FROM sales").catch(() => null),
+                DB.query("SELECT * FROM sale_items").catch(() => null),
+                DB.query("SELECT * FROM banks").catch(() => null)
             ]);
 
             // 1. Comercios con desduplicación estricta por id o por email/owner_user_id
@@ -75,6 +79,30 @@ class AdminManager {
                 if (!prodList.some(p => p.id === lp.id)) prodList.push(lp);
             });
             this.cache.products = prodList;
+
+            // 5. Ventas
+            let salesList = (salesRes && salesRes.rows && salesRes.rows.length > 0) ? salesRes.rows : DB.getLocalTable("sales");
+            const localSales = DB.getLocalTable("sales");
+            localSales.forEach(ls => {
+                if (!salesList.some(s => s.id === ls.id)) salesList.push(ls);
+            });
+            this.cache.sales = salesList;
+
+            // 6. Ítems de venta
+            let itemsList = (itemsRes && itemsRes.rows && itemsRes.rows.length > 0) ? itemsRes.rows : DB.getLocalTable("sale_items");
+            const localItems = DB.getLocalTable("sale_items");
+            localItems.forEach(li => {
+                if (!itemsList.some(i => i.id === li.id)) itemsList.push(li);
+            });
+            this.cache.sale_items = itemsList;
+
+            // 7. Bancos
+            let bankList = (bankRes && bankRes.rows && bankRes.rows.length > 0) ? bankRes.rows : DB.getLocalTable("banks");
+            const localBanks = DB.getLocalTable("banks");
+            localBanks.forEach(lb => {
+                if (!bankList.some(b => b.id === lb.id || b.name === lb.name)) bankList.push(lb);
+            });
+            this.cache.banks = bankList;
         } catch (e) {
             console.warn("Error loading admin data batch:", e);
         }
@@ -142,7 +170,10 @@ class AdminManager {
             <!-- Pestañas de Administración -->
             <ul class="nav nav-tabs mb-3" id="adminTabs" role="tablist">
                 <li class="nav-item">
-                    <button class="nav-link active" id="tab-payments-tab" data-bs-toggle="tab" data-bs-target="#tab-payments" type="button"><i class="bi bi-cash-stack me-1"></i> Membresías y Pagos</button>
+                    <button class="nav-link active" id="tab-sales-tab" data-bs-toggle="tab" data-bs-target="#tab-sales" type="button" onclick="Admin.loadAdminSalesAnalytics()"><i class="bi bi-bar-chart-line-fill me-1 text-success"></i> Ventas Gestionadas</button>
+                </li>
+                <li class="nav-item">
+                    <button class="nav-link" id="tab-payments-tab" data-bs-toggle="tab" data-bs-target="#tab-payments" type="button"><i class="bi bi-cash-stack me-1"></i> Membresías y Pagos</button>
                 </li>
                 <li class="nav-item">
                     <button class="nav-link" id="tab-users-tab" data-bs-toggle="tab" data-bs-target="#tab-users" type="button"><i class="bi bi-person-lines-fill me-1"></i> Registro de Usuarios (${stats.totalUsers})</button>
@@ -152,6 +183,9 @@ class AdminManager {
                 </li>
                 <li class="nav-item">
                     <button class="nav-link" id="tab-products-tab" data-bs-toggle="tab" data-bs-target="#tab-products" type="button" onclick="Admin.loadAdminProductsTable()"><i class="bi bi-box-seam me-1"></i> Catálogo de Productos (${stats.totalProducts})</button>
+                </li>
+                <li class="nav-item">
+                    <button class="nav-link" id="tab-banks-tab" data-bs-toggle="tab" data-bs-target="#tab-banks" type="button" onclick="Admin.loadAdminBanksTable()"><i class="bi bi-bank2 me-1 text-primary"></i> Bancos Venezolanos</button>
                 </li>
                 <li class="nav-item">
                     <button class="nav-link" id="tab-methods-tab" data-bs-toggle="tab" data-bs-target="#tab-methods" type="button"><i class="bi bi-bank me-1"></i> Formas de Pago</button>
@@ -165,8 +199,15 @@ class AdminManager {
             </ul>
 
             <div class="tab-content" id="adminTabsContent">
+                <!-- 0. ESTADÍSTICAS Y VENTAS GESTIONADAS -->
+                <div class="tab-pane fade show active" id="tab-sales">
+                    <div id="adminSalesAnalyticsContainer">
+                        <div class="text-center py-4 text-muted"><span class="spinner-border spinner-border-sm me-2"></span> Cargando analítica general de ventas...</div>
+                    </div>
+                </div>
+
                 <!-- 1. MEMBRESÍAS Y PAGOS -->
-                <div class="tab-pane fade show active" id="tab-payments">
+                <div class="tab-pane fade" id="tab-payments">
                     <!-- Configuración de Tarifa y Tasa BCV -->
                     <div class="card shadow-sm border-0 mb-4">
                         <div class="card-header bg-body text-body py-3">
@@ -309,6 +350,37 @@ class AdminManager {
                                     </thead>
                                     <tbody id="adminProductsTableBody">
                                         <!-- Productos dinámicos -->
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- BANCOS VENEZOLANOS -->
+                <div class="tab-pane fade" id="tab-banks">
+                    <div class="card shadow-sm border-0 mb-4">
+                        <div class="card-header bg-body text-body d-flex justify-content-between align-items-center py-3">
+                            <h5 class="mb-0 fw-bold"><i class="bi bi-bank2 me-2 text-primary"></i> Gestión de Bancos Venezolanos Aceptados</h5>
+                            <button class="btn btn-sm btn-success fw-bold" onclick="Admin.openAddBankModal()"><i class="bi bi-plus-circle me-1"></i> Agregar Nuevo Banco</button>
+                        </div>
+                        <div class="card-body">
+                            <div class="input-group input-group-sm mb-3">
+                                <span class="input-group-text"><i class="bi bi-search"></i></span>
+                                <input type="text" class="form-control" placeholder="Buscar banco registrado por nombre..." oninput="Admin.filterBanksTable(this.value)">
+                            </div>
+                            <div class="table-responsive">
+                                <table class="table table-hover align-middle mb-0 small">
+                                    <thead class="table-light">
+                                        <tr>
+                                            <th>#</th>
+                                            <th>Nombre Oficial del Banco</th>
+                                            <th>Estado</th>
+                                            <th class="text-end">Acciones</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="adminBanksTableBody">
+                                        <tr><td colspan="4" class="text-center text-muted py-3">Cargando bancos oficiales...</td></tr>
                                     </tbody>
                                 </table>
                             </div>
@@ -1497,6 +1569,467 @@ class AdminManager {
             btn.disabled = false;
             btn.innerHTML = origHtml;
         }
+    }
+
+    // ==========================================
+    // 🏦 GESTIÓN DE BANCOS VENEZOLANOS (SUPERADMIN)
+    // ==========================================
+
+    loadAdminBanksTable() {
+        const tbody = document.getElementById("adminBanksTableBody");
+        if (!tbody) return;
+
+        const banks = DB.getLocalTable("banks") || [];
+        const query = (this.banksSearchQuery || "").trim().toLowerCase();
+
+        let filtered = banks;
+        if (query) {
+            filtered = banks.filter(b => b.name.toLowerCase().includes(query));
+        }
+
+        filtered.sort((a, b) => a.name.localeCompare(b.name));
+
+        if (filtered.length === 0) {
+            tbody.innerHTML = `<tr><td colspan="4" class="text-center text-muted py-4">No hay bancos registrados que coincidan con la búsqueda.</td></tr>`;
+            return;
+        }
+
+        tbody.innerHTML = filtered.map((b, i) => {
+            const isActive = Number(b.is_active) === 1;
+            const statusBadge = isActive
+                ? '<span class="badge bg-success"><i class="bi bi-check-circle me-1"></i> Activo</span>'
+                : '<span class="badge bg-secondary"><i class="bi bi-eye-slash me-1"></i> Inactivo</span>';
+
+            return `
+                <tr>
+                    <td>${i + 1}</td>
+                    <td class="fw-bold text-dark"><i class="bi bi-bank2 me-2 text-primary"></i> ${b.name}</td>
+                    <td>${statusBadge}</td>
+                    <td class="text-end">
+                        <button class="btn btn-sm btn-outline-primary me-1" onclick="Admin.openEditBankModal('${b.id}')" title="Editar Nombre"><i class="bi bi-pencil-square"></i> Editar</button>
+                        <button class="btn btn-sm ${isActive ? 'btn-outline-warning' : 'btn-outline-success'} me-1" onclick="Admin.toggleAdminBankStatus('${b.id}')" title="${isActive ? 'Desactivar' : 'Activar'}">
+                            <i class="bi ${isActive ? 'bi-toggle-on' : 'bi-toggle-off'}"></i> ${isActive ? 'Desactivar' : 'Activar'}
+                        </button>
+                        <button class="btn btn-sm btn-outline-danger" onclick="Admin.deleteAdminBank('${b.id}')" title="Eliminar Banco"><i class="bi bi-trash"></i></button>
+                    </td>
+                </tr>
+            `;
+        }).join("");
+    }
+
+    filterBanksTable(query) {
+        this.banksSearchQuery = query;
+        this.loadAdminBanksTable();
+    }
+
+    openAddBankModal() {
+        document.getElementById("adminBankIdInput").value = "";
+        document.getElementById("adminBankNameInput").value = "";
+        document.getElementById("adminBankStatusInput").value = "1";
+        document.getElementById("modalAdminBankTitle").innerHTML = `<i class="bi bi-bank2 me-2"></i> Agregar Banco Venezolano`;
+        const modal = new bootstrap.Modal(document.getElementById("modalAdminAddEditBank"));
+        modal.show();
+    }
+
+    openEditBankModal(bankId) {
+        const banks = DB.getLocalTable("banks") || [];
+        const bank = banks.find(b => b.id === bankId);
+        if (!bank) return;
+
+        document.getElementById("adminBankIdInput").value = bank.id;
+        document.getElementById("adminBankNameInput").value = bank.name;
+        document.getElementById("adminBankStatusInput").value = String(bank.is_active !== undefined ? bank.is_active : 1);
+        document.getElementById("modalAdminBankTitle").innerHTML = `<i class="bi bi-pencil-square me-2"></i> Editar Banco: ${bank.name}`;
+        const modal = new bootstrap.Modal(document.getElementById("modalAdminAddEditBank"));
+        modal.show();
+    }
+
+    async saveAdminBank(event) {
+        event.preventDefault();
+        const id = document.getElementById("adminBankIdInput").value;
+        const name = document.getElementById("adminBankNameInput").value.trim();
+        const isActive = parseInt(document.getElementById("adminBankStatusInput").value);
+
+        if (!name) return;
+
+        const banks = DB.getLocalTable("banks") || [];
+
+        if (id) {
+            // Editar existente
+            const idx = banks.findIndex(b => b.id === id);
+            if (idx >= 0) {
+                banks[idx].name = name;
+                banks[idx].is_active = isActive;
+            }
+            try {
+                await DB.query("UPDATE banks SET name = ?, is_active = ? WHERE id = ?", [name, isActive, id]);
+            } catch (e) {}
+        } else {
+            // Crear nuevo
+            const newBank = {
+                id: "bnk_" + Date.now(),
+                name: name,
+                is_active: isActive,
+                created_at: new Date().toISOString()
+            };
+            banks.push(newBank);
+            try {
+                await DB.query("INSERT INTO banks (id, name, is_active, created_at) VALUES (?, ?, ?, ?)", [newBank.id, newBank.name, newBank.is_active, newBank.created_at]);
+            } catch (e) {}
+        }
+
+        DB.setLocalTable("banks", banks);
+        const modalEl = document.getElementById("modalAdminAddEditBank");
+        if (modalEl) {
+            const inst = bootstrap.Modal.getInstance(modalEl);
+            if (inst) inst.hide();
+        }
+        this.loadAdminBanksTable();
+        if (typeof AppUI !== 'undefined' && AppUI.showAlert) {
+            AppUI.showAlert("Banco Guardado", `El banco "${name}" se ha guardado exitosamente.`, "success");
+        }
+    }
+
+    async toggleAdminBankStatus(bankId) {
+        const banks = DB.getLocalTable("banks") || [];
+        const idx = banks.findIndex(b => b.id === bankId);
+        if (idx < 0) return;
+
+        const newStatus = Number(banks[idx].is_active) === 1 ? 0 : 1;
+        banks[idx].is_active = newStatus;
+        DB.setLocalTable("banks", banks);
+
+        try {
+            await DB.query("UPDATE banks SET is_active = ? WHERE id = ?", [newStatus, bankId]);
+        } catch (e) {}
+
+        this.loadAdminBanksTable();
+    }
+
+    async deleteAdminBank(bankId) {
+        const banks = DB.getLocalTable("banks") || [];
+        const bank = banks.find(b => b.id === bankId);
+        if (!bank) return;
+
+        if (!confirm(`¿Estás seguro de eliminar el banco "${bank.name}" de la lista?`)) return;
+
+        const updated = banks.filter(b => b.id !== bankId);
+        DB.setLocalTable("banks", updated);
+
+        try {
+            await DB.query("DELETE FROM banks WHERE id = ?", [bankId]);
+        } catch (e) {}
+
+        this.loadAdminBanksTable();
+    }
+
+    // ==========================================
+    // 📊 ANALÍTICA GENERAL Y VENTAS POR TIENDA
+    // ==========================================
+
+    async loadAdminSalesAnalytics() {
+        const container = document.getElementById("adminSalesAnalyticsContainer");
+        if (!container) return;
+
+        await this.fetchAllAdminData();
+
+        const sales = this.cache.sales || [];
+        const bcvRate = CONFIG.DEFAULT_BCV_RATE;
+
+        let totalSalesCount = sales.length;
+        let totalSalesUsd = 0;
+        let currentMonthCount = 0;
+        let currentMonthUsd = 0;
+
+        const now = new Date();
+        const currentYearMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+
+        sales.forEach(s => {
+            const usd = parseFloat(s.total_amount_usd || s.total_usd || 0);
+            totalSalesUsd += usd;
+
+            const saleDate = s.created_at || s.sale_date || "";
+            if (saleDate.startsWith(currentYearMonth)) {
+                currentMonthCount++;
+                currentMonthUsd += usd;
+            }
+        });
+
+        const totalSalesVes = totalSalesUsd * bcvRate;
+        const currentMonthVes = currentMonthUsd * bcvRate;
+
+        // Renderizar Métricas de Ventas
+        container.innerHTML = `
+            <div class="row g-3 mb-4">
+                <div class="col-md-3">
+                    <div class="card bg-success text-white shadow-sm border-0 h-100">
+                        <div class="card-body d-flex align-items-center">
+                            <div class="fs-1 me-3"><i class="bi bi-cart-check-fill"></i></div>
+                            <div>
+                                <h6 class="card-title mb-0">Total Ventas Gestionadas</h6>
+                                <h3 class="fw-bold mb-0">${totalSalesCount.toLocaleString()}</h3>
+                                <small class="text-white-50">Plataforma Completa</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card bg-primary text-white shadow-sm border-0 h-100">
+                        <div class="card-body d-flex align-items-center">
+                            <div class="fs-1 me-3"><i class="bi bi-currency-dollar"></i></div>
+                            <div>
+                                <h6 class="card-title mb-0">Volumen Total ($ USD)</h6>
+                                <h3 class="fw-bold mb-0">$${totalSalesUsd.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</h3>
+                                <small class="text-white-50">Acumulado General</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card bg-info text-white shadow-sm border-0 h-100">
+                        <div class="card-body d-flex align-items-center">
+                            <div class="fs-1 me-3"><i class="bi bi-cash-stack"></i></div>
+                            <div>
+                                <h6 class="card-title mb-0">Volumen Total (Bs. VES)</h6>
+                                <h3 class="fw-bold mb-0">Bs. ${totalSalesVes.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</h3>
+                                <small class="text-white-50">Tasa BCV (${bcvRate.toFixed(2)})</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card bg-warning text-dark shadow-sm border-0 h-100">
+                        <div class="card-body d-flex align-items-center">
+                            <div class="fs-1 me-3"><i class="bi bi-graph-up-arrow"></i></div>
+                            <div>
+                                <h6 class="card-title mb-0">Ventas Este Mes</h6>
+                                <h3 class="fw-bold mb-0">${currentMonthCount} (${'$' + currentMonthUsd.toFixed(2)})</h3>
+                                <small class="text-dark-50">Bs. ${currentMonthVes.toFixed(2)}</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- TABLA DE VENTAS POR TIENDA Y COMERCIO -->
+            <div class="card shadow-sm border-0">
+                <div class="card-header bg-body text-body d-flex justify-content-between align-items-center py-3">
+                    <h5 class="mb-0 fw-bold"><i class="bi bi-shop me-2 text-success"></i> Ventas Gestionadas por Tienda / Comercio</h5>
+                    <div class="input-group input-group-sm w-auto">
+                        <span class="input-group-text"><i class="bi bi-search"></i></span>
+                        <input type="text" class="form-control" placeholder="Buscar tienda o propietario..." oninput="Admin.filterStoreSalesTable(this.value)">
+                    </div>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle mb-0 small">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>#</th>
+                                    <th>Nombre del Comercio / Tienda</th>
+                                    <th>Propietario / Correo</th>
+                                    <th>Cant. Ventas</th>
+                                    <th>Total ($ USD)</th>
+                                    <th>Total (Bs. VES)</th>
+                                    <th>Última Venta</th>
+                                    <th class="text-end">Acción</th>
+                                </tr>
+                            </thead>
+                            <tbody id="adminStoreSalesTableBody">
+                                <!-- Se renderiza con renderStoreSalesTable() -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        `;
+
+        this.renderStoreSalesTable();
+    }
+
+    renderStoreSalesTable(query = "") {
+        const tbody = document.getElementById("adminStoreSalesTableBody");
+        if (!tbody) return;
+
+        const sales = this.cache.sales || [];
+        const businesses = this.cache.businesses || [];
+        const users = this.cache.users || [];
+        const bcvRate = CONFIG.DEFAULT_BCV_RATE;
+
+        // Agrupar ventas por business_id
+        const storeStats = new Map();
+        businesses.forEach(b => {
+            const owner = users.find(u => u.id === b.owner_user_id || u.email === b.email) || {};
+            storeStats.set(b.id, {
+                business: b,
+                owner: owner,
+                count: 0,
+                totalUsd: 0,
+                lastSaleDate: null
+            });
+        });
+
+        sales.forEach(s => {
+            const bizId = s.business_id;
+            let stat = storeStats.get(bizId);
+            if (!stat) {
+                const biz = businesses.find(b => b.id === bizId) || { id: bizId, name: "Comercio Anónimo" };
+                stat = { business: biz, owner: {}, count: 0, totalUsd: 0, lastSaleDate: null };
+                storeStats.set(bizId, stat);
+            }
+            stat.count++;
+            const usd = parseFloat(s.total_amount_usd || s.total_usd || 0);
+            stat.totalUsd += usd;
+
+            const d = new Date(s.created_at || s.sale_date || 0);
+            if (!stat.lastSaleDate || d > stat.lastSaleDate) {
+                stat.lastSaleDate = d;
+            }
+        });
+
+        let list = Array.from(storeStats.values());
+        if (query && query.trim()) {
+            const q = query.trim().toLowerCase();
+            list = list.filter(item => 
+                (item.business.name && item.business.name.toLowerCase().includes(q)) ||
+                (item.owner.name && item.owner.name.toLowerCase().includes(q)) ||
+                (item.owner.email && item.owner.email.toLowerCase().includes(q))
+            );
+        }
+
+        list.sort((a, b) => b.totalUsd - a.totalUsd);
+
+        if (list.length === 0) {
+            tbody.innerHTML = `<tr><td colspan="8" class="text-center text-muted py-4">No se encontraron tiendas que coincidan con la búsqueda.</td></tr>`;
+            return;
+        }
+
+        tbody.innerHTML = list.map((item, idx) => {
+            const biz = item.business;
+            const ownerName = item.owner.name || biz.owner_user_id || "Propietario";
+            const ownerEmail = item.owner.email || biz.email || "N/A";
+            const totalVes = item.totalUsd * bcvRate;
+            const lastDateStr = item.lastSaleDate ? item.lastSaleDate.toLocaleDateString() + ' ' + item.lastSaleDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : "Sin ventas";
+
+            return `
+                <tr>
+                    <td>${idx + 1}</td>
+                    <td>
+                        <strong class="text-dark fs-6">${biz.name}</strong><br>
+                        <small class="text-muted">ID: <code>${biz.id}</code></small>
+                    </td>
+                    <td>
+                        <div class="fw-semibold">${ownerName}</div>
+                        <small class="text-muted">${ownerEmail}</small>
+                    </td>
+                    <td>
+                        <span class="badge bg-light text-dark border px-2 py-1 fs-6">${item.count} ventas</span>
+                    </td>
+                    <td>
+                        <strong class="text-success fs-6">$${item.totalUsd.toFixed(2)} USD</strong>
+                    </td>
+                    <td>
+                        <span class="text-primary fw-semibold">Bs. ${totalVes.toFixed(2)}</span>
+                    </td>
+                    <td>
+                        <small class="text-muted"><i class="bi bi-clock-history me-1"></i> ${lastDateStr}</small>
+                    </td>
+                    <td class="text-end">
+                        <button class="btn btn-sm btn-outline-primary" onclick="Admin.openBusinessSalesDetailModal('${biz.id}')">
+                            <i class="bi bi-eye-fill me-1"></i> Ver Detalles
+                        </button>
+                    </td>
+                </tr>
+            `;
+        }).join("");
+    }
+
+    filterStoreSalesTable(query) {
+        this.renderStoreSalesTable(query);
+    }
+
+    openBusinessSalesDetailModal(bizId) {
+        const businesses = this.cache.businesses || [];
+        const users = this.cache.users || [];
+        const sales = this.cache.sales || [];
+        const saleItems = this.cache.sale_items || [];
+        const bcvRate = CONFIG.DEFAULT_BCV_RATE;
+
+        const biz = businesses.find(b => b.id === bizId) || { id: bizId, name: "Comercio" };
+        const owner = users.find(u => u.id === biz.owner_user_id || u.email === biz.email) || {};
+
+        this._currentModalBizSales = sales.filter(s => s.business_id === bizId);
+        this._currentModalBizSalesItems = saleItems;
+
+        const titleEl = document.getElementById("adminStoreSalesName");
+        const ownerEl = document.getElementById("adminStoreSalesOwner");
+        const totalAmountEl = document.getElementById("adminStoreSalesTotalAmount");
+        const totalCountEl = document.getElementById("adminStoreSalesTotalCount");
+
+        if (titleEl) titleEl.textContent = `Comercio: ${biz.name}`;
+        if (ownerEl) ownerEl.textContent = `Propietario: ${owner.name || 'N/A'} (${owner.email || biz.email || 'N/A'})`;
+
+        const totalUsd = this._currentModalBizSales.reduce((sum, s) => sum + parseFloat(s.total_amount_usd || s.total_usd || 0), 0);
+        if (totalAmountEl) totalAmountEl.textContent = `$${totalUsd.toFixed(2)} USD (Bs. ${(totalUsd * bcvRate).toFixed(2)})`;
+        if (totalCountEl) totalCountEl.textContent = `${this._currentModalBizSales.length} Ventas Registradas`;
+
+        this.renderStoreSalesDetailTable("");
+
+        const modal = new bootstrap.Modal(document.getElementById("modalAdminBusinessSalesDetail"));
+        modal.show();
+    }
+
+    renderStoreSalesDetailTable(query = "") {
+        const tbody = document.getElementById("adminStoreSalesDetailTableBody");
+        if (!tbody) return;
+
+        const sales = this._currentModalBizSales || [];
+        const saleItems = this._currentModalBizSalesItems || [];
+        const bcvRate = CONFIG.DEFAULT_BCV_RATE;
+
+        let filtered = sales;
+        if (query && query.trim()) {
+            const q = query.trim().toLowerCase();
+            filtered = sales.filter(s => 
+                (s.client_name && s.client_name.toLowerCase().includes(q)) ||
+                (s.reference_number && s.reference_number.toLowerCase().includes(q)) ||
+                (s.id && s.id.toLowerCase().includes(q))
+            );
+        }
+
+        filtered.sort((a, b) => new Date(b.created_at || b.sale_date || 0) - new Date(a.created_at || a.sale_date || 0));
+
+        if (filtered.length === 0) {
+            tbody.innerHTML = `<tr><td colspan="7" class="text-center text-muted py-4">No hay ventas registradas para este comercio.</td></tr>`;
+            return;
+        }
+
+        tbody.innerHTML = filtered.map((s, i) => {
+            const items = saleItems.filter(item => item.sale_id === s.id);
+            const itemsHtml = items.length > 0
+                ? items.map(it => `<div class="small">• <strong>${it.product_name || 'Producto'}</strong> x${it.quantity} ($${parseFloat(it.unit_price || 0).toFixed(2)})</div>`).join("")
+                : '<span class="text-muted small">Sin detalle de productos</span>';
+
+            const dateStr = s.created_at || s.sale_date ? new Date(s.created_at || s.sale_date).toLocaleString() : "Fecha N/A";
+            const usd = parseFloat(s.total_amount_usd || s.total_usd || 0);
+            const ves = parseFloat(s.total_amount_ves || s.total_ves || (usd * bcvRate));
+
+            return `
+                <tr>
+                    <td><code>${s.id}</code></td>
+                    <td><small class="text-muted"><i class="bi bi-calendar-event me-1"></i> ${dateStr}</small></td>
+                    <td class="fw-semibold">${s.client_name || 'Cliente de Contado'}</td>
+                    <td>${itemsHtml}</td>
+                    <td><span class="badge bg-light text-dark border">${s.payment_method || 'Efectivo / Transferencia'}</span></td>
+                    <td><strong class="text-success">$${usd.toFixed(2)} USD</strong></td>
+                    <td><span class="text-primary fw-semibold">Bs. ${ves.toFixed(2)}</span></td>
+                </tr>
+            `;
+        }).join("");
+    }
+
+    filterStoreSalesDetailTable(query) {
+        this.renderStoreSalesDetailTable(query);
     }
 }
 

@@ -19,7 +19,7 @@ class DatabaseManager {
         const tables = [
             "users", "businesses", "user_business_roles", "payment_methods",
             "payments", "clients", "suppliers", "products", "purchases",
-            "purchase_items", "sales", "sale_items", "incidents", "settings"
+            "purchase_items", "sales", "sale_items", "incidents", "settings", "banks"
         ];
         tables.forEach(table => {
             if (!localStorage.getItem(this.storageKeyPrefix + table)) {
@@ -45,6 +45,18 @@ class DatabaseManager {
             CONFIG.DEFAULT_PAYMENT_METHODS.forEach(pm => {
                 this.setLocalRecord("payment_methods", pm);
             });
+        }
+
+        // Cargar bancos oficiales de Venezuela por defecto si no existen
+        const localBanks = this.getLocalTable("banks");
+        if (localBanks.length === 0 && CONFIG.DEFAULT_BANKS) {
+            const initialBanks = CONFIG.DEFAULT_BANKS.map((name, idx) => ({
+                id: "bnk_" + (idx + 1),
+                name: name,
+                is_active: 1,
+                created_at: new Date().toISOString()
+            }));
+            this.setLocalTable("banks", initialBanks);
         }
 
         // Cargar SuperAdmin si no existe
@@ -90,6 +102,10 @@ class DatabaseManager {
      * Ejecuta migraciones de esquema idempotentes en Turso
      */
     async runMigrations() {
+        try {
+            await this.query("CREATE TABLE IF NOT EXISTS banks (id TEXT PRIMARY KEY, name TEXT UNIQUE, is_active INTEGER DEFAULT 1, created_at TEXT)");
+        } catch (e) {}
+
         const migrations = [
             "ALTER TABLE users ADD COLUMN phone TEXT",
             "ALTER TABLE businesses ADD COLUMN rif TEXT",
