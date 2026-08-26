@@ -209,7 +209,7 @@ class StorageManager {
         if (!fileUrl || typeof fileUrl !== "string") return false;
 
         try {
-            if (!fileUrl.includes("r2.cloudflarestorage.com") && !fileUrl.includes(this.bucket)) {
+            if (!fileUrl.includes("r2.cloudflarestorage.com") && !fileUrl.includes("r2.dev") && !fileUrl.includes(this.bucket)) {
                 return false;
             }
 

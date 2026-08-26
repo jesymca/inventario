@@ -87,10 +87,11 @@ const CONFIG = {
     // Credenciales Cloudflare R2 Storage
     CLOUDFLARE_R2: {
         endpoint: "https://da7c23add0ce839e4989c068fbfa4394.r2.cloudflarestorage.com",
+        publicUrl: "https://pub-a39a66fff2cc42d1b7a429731352221d.r2.dev",
         token: window.ENV_R2_TOKEN || "CLOUDFLARE_R2_TOKEN_CONFIGURED",
         accessKeyId: "f2d61617f208f755254f715a3648b177",
         secretAccessKey: "3f3f105d0a2b13a7593fe84ab07c306a8060b37cb03217741f90565b7b8cac8d",
-        bucketName: "inventario-media"
+        bucketName: "inventario"
     },
 
     // Client ID de Google OAuth 2.0 (Configurado oficialmente)
