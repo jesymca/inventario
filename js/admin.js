@@ -1581,15 +1581,15 @@ class AdminManager {
         const tbody = document.getElementById("adminBanksTableBody");
         if (!tbody) return;
 
-        const banks = DB.getLocalTable("banks") || [];
+        const banks = (this.cache.banks && this.cache.banks.length > 0) ? this.cache.banks : (DB.getLocalTable("banks") || []);
         const query = (this.banksSearchQuery || "").trim().toLowerCase();
 
         let filtered = banks;
         if (query) {
-            filtered = banks.filter(b => b.name.toLowerCase().includes(query));
+            filtered = banks.filter(b => b.name && b.name.toLowerCase().includes(query));
         }
 
-        filtered.sort((a, b) => a.name.localeCompare(b.name));
+        filtered.sort((a, b) => (a.name || "").localeCompare(b.name || ""));
 
         if (filtered.length === 0) {
             tbody.innerHTML = `<tr><td colspan="4" class="text-center text-muted py-4">No hay bancos registrados que coincidan con la búsqueda.</td></tr>`;
@@ -1598,21 +1598,30 @@ class AdminManager {
 
         tbody.innerHTML = filtered.map((b, i) => {
             const isActive = Number(b.is_active) === 1;
-            const statusBadge = isActive
-                ? '<span class="badge bg-success"><i class="bi bi-check-circle me-1"></i> Activo</span>'
-                : '<span class="badge bg-secondary"><i class="bi bi-eye-slash me-1"></i> Inactivo</span>';
 
             return `
                 <tr>
                     <td>${i + 1}</td>
-                    <td class="fw-bold text-dark"><i class="bi bi-bank2 me-2 text-primary"></i> ${b.name}</td>
-                    <td>${statusBadge}</td>
+                    <td>
+                        <strong class="text-dark fs-6">${b.name}</strong><br>
+                        <small class="text-muted">ID: <code>${b.id}</code></small>
+                    </td>
+                    <td>
+                        <span class="badge ${isActive ? 'bg-success' : 'bg-secondary'} px-2 py-1 fs-6">
+                            <i class="bi ${isActive ? 'bi-check-circle-fill' : 'bi-slash-circle-fill'} me-1"></i>
+                            ${isActive ? 'Activo' : 'Inactivo'}
+                        </span>
+                    </td>
                     <td class="text-end">
-                        <button class="btn btn-sm btn-outline-primary me-1" onclick="Admin.openEditBankModal('${b.id}')" title="Editar Nombre"><i class="bi bi-pencil-square"></i> Editar</button>
                         <button class="btn btn-sm ${isActive ? 'btn-outline-warning' : 'btn-outline-success'} me-1" onclick="Admin.toggleAdminBankStatus('${b.id}')" title="${isActive ? 'Desactivar' : 'Activar'}">
-                            <i class="bi ${isActive ? 'bi-toggle-on' : 'bi-toggle-off'}"></i> ${isActive ? 'Desactivar' : 'Activar'}
+                            <i class="bi ${isActive ? 'bi-pause-circle' : 'bi-play-circle'} me-1"></i> ${isActive ? 'Desactivar' : 'Activar'}
                         </button>
-                        <button class="btn btn-sm btn-outline-danger" onclick="Admin.deleteAdminBank('${b.id}')" title="Eliminar Banco"><i class="bi bi-trash"></i></button>
+                        <button class="btn btn-sm btn-outline-primary me-1" onclick="Admin.openEditBankModal('${b.id}')" title="Editar nombre">
+                            <i class="bi bi-pencil-fill"></i>
+                        </button>
+                        <button class="btn btn-sm btn-outline-danger" onclick="Admin.deleteAdminBank('${b.id}')" title="Eliminar banco">
+                            <i class="bi bi-trash-fill"></i>
+                        </button>
                     </td>
                 </tr>
             `;
@@ -1628,20 +1637,22 @@ class AdminManager {
         document.getElementById("adminBankIdInput").value = "";
         document.getElementById("adminBankNameInput").value = "";
         document.getElementById("adminBankStatusInput").value = "1";
-        document.getElementById("modalAdminBankTitle").innerHTML = `<i class="bi bi-bank2 me-2"></i> Agregar Banco Venezolano`;
+        document.getElementById("modalAdminAddEditBankTitle").textContent = "Agregar Nuevo Banco Venezolano";
+
         const modal = new bootstrap.Modal(document.getElementById("modalAdminAddEditBank"));
         modal.show();
     }
 
     openEditBankModal(bankId) {
-        const banks = DB.getLocalTable("banks") || [];
+        const banks = (this.cache.banks && this.cache.banks.length > 0) ? this.cache.banks : (DB.getLocalTable("banks") || []);
         const bank = banks.find(b => b.id === bankId);
         if (!bank) return;
 
         document.getElementById("adminBankIdInput").value = bank.id;
         document.getElementById("adminBankNameInput").value = bank.name;
         document.getElementById("adminBankStatusInput").value = String(bank.is_active !== undefined ? bank.is_active : 1);
-        document.getElementById("modalAdminBankTitle").innerHTML = `<i class="bi bi-pencil-square me-2"></i> Editar Banco: ${bank.name}`;
+        document.getElementById("modalAdminAddEditBankTitle").textContent = "Editar Banco Venezolano";
+
         const modal = new bootstrap.Modal(document.getElementById("modalAdminAddEditBank"));
         modal.show();
     }
@@ -1652,9 +1663,9 @@ class AdminManager {
         const name = document.getElementById("adminBankNameInput").value.trim();
         const isActive = parseInt(document.getElementById("adminBankStatusInput").value);
 
-        if (!name) return;
+        if (!name) return alert("Por favor ingresa el nombre del banco.");
 
-        const banks = DB.getLocalTable("banks") || [];
+        const banks = (this.cache.banks && this.cache.banks.length > 0) ? this.cache.banks : (DB.getLocalTable("banks") || []);
 
         if (id) {
             // Editar existente
@@ -1680,7 +1691,9 @@ class AdminManager {
             } catch (e) {}
         }
 
+        this.cache.banks = banks;
         DB.setLocalTable("banks", banks);
+
         const modalEl = document.getElementById("modalAdminAddEditBank");
         if (modalEl) {
             const inst = bootstrap.Modal.getInstance(modalEl);
@@ -1693,12 +1706,14 @@ class AdminManager {
     }
 
     async toggleAdminBankStatus(bankId) {
-        const banks = DB.getLocalTable("banks") || [];
+        const banks = (this.cache.banks && this.cache.banks.length > 0) ? this.cache.banks : (DB.getLocalTable("banks") || []);
         const idx = banks.findIndex(b => b.id === bankId);
         if (idx < 0) return;
 
         const newStatus = Number(banks[idx].is_active) === 1 ? 0 : 1;
         banks[idx].is_active = newStatus;
+
+        this.cache.banks = banks;
         DB.setLocalTable("banks", banks);
 
         try {
@@ -1709,13 +1724,14 @@ class AdminManager {
     }
 
     async deleteAdminBank(bankId) {
-        const banks = DB.getLocalTable("banks") || [];
+        const banks = (this.cache.banks && this.cache.banks.length > 0) ? this.cache.banks : (DB.getLocalTable("banks") || []);
         const bank = banks.find(b => b.id === bankId);
         if (!bank) return;
 
         if (!confirm(`¿Estás seguro de eliminar el banco "${bank.name}" de la lista?`)) return;
 
         const updated = banks.filter(b => b.id !== bankId);
+        this.cache.banks = updated;
         DB.setLocalTable("banks", updated);
 
         try {

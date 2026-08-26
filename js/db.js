@@ -104,7 +104,20 @@ class DatabaseManager {
     async runMigrations() {
         try {
             await this.query("CREATE TABLE IF NOT EXISTS banks (id TEXT PRIMARY KEY, name TEXT UNIQUE, is_active INTEGER DEFAULT 1, created_at TEXT)");
-        } catch (e) {}
+            if (typeof CONFIG !== "undefined" && CONFIG.DEFAULT_BANKS && CONFIG.DEFAULT_BANKS.length > 0) {
+                const nowIso = new Date().toISOString();
+                for (let idx = 0; idx < CONFIG.DEFAULT_BANKS.length; idx++) {
+                    const bankName = CONFIG.DEFAULT_BANKS[idx];
+                    const bankId = "bnk_" + (idx + 1);
+                    await this.query(
+                        "INSERT OR IGNORE INTO banks (id, name, is_active, created_at) VALUES (?, ?, 1, ?)",
+                        [bankId, bankName, nowIso]
+                    );
+                }
+            }
+        } catch (e) {
+            console.warn("Error en siembra de bancos Turso DB:", e);
+        }
 
         const migrations = [
             "ALTER TABLE users ADD COLUMN phone TEXT",
