@@ -514,10 +514,12 @@ class AdminManager {
             </div>
         `;
 
+        this.loadAdminSalesAnalytics();
         this.loadAdminPaymentsTable();
         this.loadAdminUsersTable();
         this.loadAdminBusinessesTable();
         this.loadAdminProductsTable();
+        this.loadAdminBanksTable();
         this.loadAdminPaymentMethods();
         this.loadAdminIncidentsTable();
         this.runConnectivityTests();
