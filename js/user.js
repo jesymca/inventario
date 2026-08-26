@@ -597,14 +597,17 @@ class UserManager {
                                                     <div class="col-md-6">
                                                         <label class="form-label small fw-semibold">Rubro / Categoría del Negocio</label>
                                                         <select class="form-select form-select-sm" name="category_preset" onchange="AppUI.changePresetProfile(this.value)">
-                                                            <option value="panaderia" ${currentBiz.category_preset === 'panaderia' ? 'selected' : ''}>Panadería & Pastelería</option>
-                                                            <option value="zapateria" ${currentBiz.category_preset === 'zapateria' ? 'selected' : ''}>Zapatería</option>
-                                                            <option value="libreria" ${currentBiz.category_preset === 'libreria' ? 'selected' : ''}>Librería y Papelería</option>
-                                                            <option value="farmacia" ${currentBiz.category_preset === 'farmacia' ? 'selected' : ''}>Farmacia & Botica</option>
-                                                            <option value="ropa" ${currentBiz.category_preset === 'ropa' ? 'selected' : ''}>Tienda de Ropa & Boutique</option>
-                                                            <option value="bolsos" ${currentBiz.category_preset === 'bolsos' ? 'selected' : ''}>Tienda de Bolsos & Maletas</option>
-                                                            <option value="viveres" ${currentBiz.category_preset === 'viveres' || !currentBiz.category_preset ? 'selected' : ''}>Abasto & Víveres</option>
-                                                            <option value="carniceria" ${currentBiz.category_preset === 'carniceria' ? 'selected' : ''}>Carnicería & Frigorífico</option>
+                                                            <option value="custom" ${!currentBiz.category_preset || currentBiz.category_preset === 'custom' ? 'selected' : ''}>⭐ Perfil Propio (${currentBiz.name || 'Mi Comercio'})</option>
+                                                            <optgroup label="Rubros de Ejemplo / Datos Demo">
+                                                                <option value="panaderia" ${currentBiz.category_preset === 'panaderia' ? 'selected' : ''}>Panadería & Pastelería</option>
+                                                                <option value="zapateria" ${currentBiz.category_preset === 'zapateria' ? 'selected' : ''}>Zapatería</option>
+                                                                <option value="libreria" ${currentBiz.category_preset === 'libreria' ? 'selected' : ''}>Librería y Papelería</option>
+                                                                <option value="farmacia" ${currentBiz.category_preset === 'farmacia' ? 'selected' : ''}>Farmacia & Botica</option>
+                                                                <option value="ropa" ${currentBiz.category_preset === 'ropa' ? 'selected' : ''}>Tienda de Ropa & Boutique</option>
+                                                                <option value="bolsos" ${currentBiz.category_preset === 'bolsos' ? 'selected' : ''}>Tienda de Bolsos & Maletas</option>
+                                                                <option value="viveres" ${currentBiz.category_preset === 'viveres' ? 'selected' : ''}>Abasto & Víveres</option>
+                                                                <option value="carniceria" ${currentBiz.category_preset === 'carniceria' ? 'selected' : ''}>Carnicería & Frigorífico</option>
+                                                            </optgroup>
                                                         </select>
                                                     </div>
                                                     <div class="col-md-6 d-flex align-items-end">
@@ -2042,6 +2045,7 @@ class UserManager {
         const address = form.address ? form.address.value.trim() : (Auth.currentBusiness.address || "");
         const website = form.website ? form.website.value.trim() : (Auth.currentBusiness.website || "");
         const brandingColor = form.branding_color ? form.branding_color.value : (Auth.currentBusiness.branding_color || "#0d6efd");
+        const categoryPreset = form.category_preset ? form.category_preset.value : (Auth.currentBusiness.category_preset || "custom");
         const pdfHeader = form.pdf_header_text ? form.pdf_header_text.value.trim() : "";
         const pdfFooter = form.pdf_footer_text ? form.pdf_footer_text.value.trim() : "";
 
@@ -2055,13 +2059,14 @@ class UserManager {
             businesses[idx].address = address;
             businesses[idx].website = website;
             businesses[idx].branding_color = brandingColor;
+            businesses[idx].category_preset = categoryPreset;
             businesses[idx].pdf_header_text = pdfHeader;
             businesses[idx].pdf_footer_text = pdfFooter;
 
             try {
                 await DB.query(
-                    `UPDATE businesses SET name = ?, rif = ?, phone = ?, email = ?, address = ?, website = ?, branding_color = ?, pdf_header_text = ?, pdf_footer_text = ? WHERE id = ?`,
-                    [name, rif, phone, email, address, website, brandingColor, pdfHeader, pdfFooter, bizId]
+                    `UPDATE businesses SET name = ?, rif = ?, phone = ?, email = ?, address = ?, website = ?, branding_color = ?, category_preset = ?, pdf_header_text = ?, pdf_footer_text = ? WHERE id = ?`,
+                    [name, rif, phone, email, address, website, brandingColor, categoryPreset, pdfHeader, pdfFooter, bizId]
                 );
             } catch (e) {
                 try {
@@ -2069,8 +2074,8 @@ class UserManager {
                     await DB.query(`ALTER TABLE businesses ADD COLUMN pdf_header_text TEXT`).catch(() => {});
                     await DB.query(`ALTER TABLE businesses ADD COLUMN pdf_footer_text TEXT`).catch(() => {});
                     await DB.query(
-                        `UPDATE businesses SET name = ?, rif = ?, phone = ?, email = ?, address = ?, website = ?, branding_color = ?, pdf_header_text = ?, pdf_footer_text = ? WHERE id = ?`,
-                        [name, rif, phone, email, address, website, brandingColor, pdfHeader, pdfFooter, bizId]
+                        `UPDATE businesses SET name = ?, rif = ?, phone = ?, email = ?, address = ?, website = ?, branding_color = ?, category_preset = ?, pdf_header_text = ?, pdf_footer_text = ? WHERE id = ?`,
+                        [name, rif, phone, email, address, website, brandingColor, categoryPreset, pdfHeader, pdfFooter, bizId]
                     );
                 } catch (err) {
                     await DB.query(
@@ -2086,7 +2091,7 @@ class UserManager {
         }
 
         if (typeof AppUI !== 'undefined' && AppUI.showAlert) {
-            AppUI.showAlert("Perfil Actualizado", "¡Los datos de tu negocio y la configuración de reportes PDF han sido guardados con éxito!", "success");
+            AppUI.showAlert("Perfil Actualizado", `¡Los datos de tu negocio (${name}) y la configuración de reportes PDF se han guardado exitosamente!`, "success");
         }
         AppUI.renderApp();
     }

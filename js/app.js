@@ -226,8 +226,15 @@ class AppUIManager {
                 <nav class="navbar navbar-expand-lg bg-body-tertiary shadow-sm border-bottom py-2">
                     <div class="container-fluid">
                         <a class="navbar-brand d-flex align-items-center fw-bold" href="#">
-                            <img src="${CONFIG.LOGO_PATH}" alt="Logo" height="36" class="me-2 rounded">
-                            <span class="text-truncate d-inline-block" style="max-width: 45vw">${biz ? biz.name : CONFIG.APP_NAME}</span>
+                            <!-- Logo Principal del Sistema -->
+                            <img src="${CONFIG.LOGO_PATH}" alt="Logo Sistema" height="36" class="me-2 rounded" title="Sistema de Inventarios">
+                            
+                            <!-- Logo Personalizado del Usuario / Comercio (Si existe) -->
+                            ${biz && biz.logo_url ? `
+                                <img src="${biz.logo_url}" alt="Logo ${biz.name}" height="36" class="me-2 rounded border bg-white p-1 shadow-sm" style="max-width: 75px; object-fit: contain;" title="Logo de tu Comercio">
+                            ` : ''}
+                            
+                            <span class="text-truncate d-inline-block" style="max-width: 40vw">${biz ? biz.name : CONFIG.APP_NAME}</span>
                         </a>
                         <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarContent">
                             <span class="navbar-toggler-icon"></span>
@@ -257,15 +264,17 @@ class AppUIManager {
 
                                 <div class="me-3">
                                     <select class="form-select form-select-sm" onchange="AppUI.changePresetProfile(this.value)">
-                                        <option value="">-- Perfil Comercio --</option>
-                                        <option value="panaderia" ${biz.category_preset === 'panaderia' ? 'selected' : ''}>Panadería & Pastelería</option>
-                                        <option value="zapateria" ${biz.category_preset === 'zapateria' ? 'selected' : ''}>Zapatería</option>
-                                        <option value="libreria" ${biz.category_preset === 'libreria' ? 'selected' : ''}>Librería y Papelería</option>
-                                        <option value="farmacia" ${biz.category_preset === 'farmacia' ? 'selected' : ''}>Farmacia & Botica</option>
-                                        <option value="ropa" ${biz.category_preset === 'ropa' ? 'selected' : ''}>Tienda de Ropa & Boutique</option>
-                                        <option value="bolsos" ${biz.category_preset === 'bolsos' ? 'selected' : ''}>Tienda de Bolsos & Maletas</option>
-                                        <option value="viveres" ${biz.category_preset === 'viveres' ? 'selected' : ''}>Abasto & Víveres</option>
-                                        <option value="carniceria" ${biz.category_preset === 'carniceria' ? 'selected' : ''}>Carnicería & Frigorífico</option>
+                                        <option value="custom" ${!biz.category_preset || biz.category_preset === 'custom' ? 'selected' : ''}>⭐ Perfil Propio (${biz.name || 'Mi Comercio'})</option>
+                                        <optgroup label="Rubros de Ejemplo / Datos Demo">
+                                            <option value="panaderia" ${biz.category_preset === 'panaderia' ? 'selected' : ''}>Panadería & Pastelería</option>
+                                            <option value="zapateria" ${biz.category_preset === 'zapateria' ? 'selected' : ''}>Zapatería</option>
+                                            <option value="libreria" ${biz.category_preset === 'libreria' ? 'selected' : ''}>Librería y Papelería</option>
+                                            <option value="farmacia" ${biz.category_preset === 'farmacia' ? 'selected' : ''}>Farmacia & Botica</option>
+                                            <option value="ropa" ${biz.category_preset === 'ropa' ? 'selected' : ''}>Tienda de Ropa & Boutique</option>
+                                            <option value="bolsos" ${biz.category_preset === 'bolsos' ? 'selected' : ''}>Tienda de Bolsos & Maletas</option>
+                                            <option value="viveres" ${biz.category_preset === 'viveres' ? 'selected' : ''}>Abasto & Víveres</option>
+                                            <option value="carniceria" ${biz.category_preset === 'carniceria' ? 'selected' : ''}>Carnicería & Frigorífico</option>
+                                        </optgroup>
                                     </select>
                                 </div>
                             ` : ''}
@@ -520,14 +529,36 @@ class AppUIManager {
         const bizId = Auth.currentBusiness.id;
         const isDemoActive = Number(Auth.currentBusiness.is_demo_active || 0) === 1;
 
+        if (presetKey === 'custom') {
+            Auth.currentBusiness.category_preset = 'custom';
+            const businesses = DB.getLocalTable("businesses");
+            const idx = businesses.findIndex(b => b.id === bizId);
+            if (idx >= 0) {
+                businesses[idx].category_preset = 'custom';
+                DB.setLocalTable("businesses", businesses);
+            }
+            try {
+                await DB.query("UPDATE businesses SET category_preset = 'custom' WHERE id = ?", [bizId]);
+            } catch (e) {}
+
+            if (isDemoActive) {
+                this.showAlert("Perfil Propio Activo", `Se ha activado tu <strong>Perfil Personalizado (${Auth.currentBusiness.name})</strong>. Se removieron los datos de prueba.`, "success");
+                await Presets.clearDemoData(bizId);
+            } else {
+                this.showAlert("Perfil Propio Activo", `Estás utilizando tu <strong>Perfil Personalizado (${Auth.currentBusiness.name})</strong>.`, "success");
+            }
+            this.renderApp();
+            return;
+        }
+
         await Presets.applyPresetProfile(presetKey, bizId);
 
         if (isDemoActive) {
-            this.showAlert("Cambiando Rubro de Prueba", `Actualizando inventario de prueba para el rubro <strong>${presetKey.toUpperCase()}</strong>...`, "info");
+            this.showAlert("Rubro de Prueba Activo", `Cargando catálogo de productos de ejemplo para el rubro <strong>${presetKey.toUpperCase()}</strong> en tu comercio (${Auth.currentBusiness.name})...`, "info");
             await Presets.clearDemoData(bizId);
             await Presets.loadDemoData(bizId, presetKey);
         } else {
-            this.showAlert("Perfil Actualizado", `El comercio ahora está configurado para el rubro <strong>${presetKey.toUpperCase()}</strong>.`, "success");
+            this.showAlert("Rubro Asignado", `Tu comercio (${Auth.currentBusiness.name}) ahora está asociado al rubro <strong>${presetKey.toUpperCase()}</strong>.`, "success");
         }
 
         this.renderApp();
