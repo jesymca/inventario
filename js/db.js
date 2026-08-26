@@ -155,12 +155,20 @@ class DatabaseManager {
             const data = await response.json();
             const result = data.results[0];
             if (result.type === "error") {
-                throw new Error(result.error.message);
+                const errMsg = (result.error && result.error.message) ? result.error.message : "";
+                if (errMsg.toLowerCase().includes("duplicate column name") || errMsg.toLowerCase().includes("already exists")) {
+                    return { rows: [], rowsAffected: 0 };
+                }
+                throw new Error(errMsg);
             }
 
             return this.transformTursoResult(result.response.result);
         } catch (err) {
-            console.warn("Turso API inaccesible o error de red. Usando motor LocalStorage:", err.message);
+            const errMsg = err ? err.message : "";
+            if (errMsg.toLowerCase().includes("duplicate column name") || errMsg.toLowerCase().includes("already exists")) {
+                return { rows: [], rowsAffected: 0 };
+            }
+            console.warn("Turso API inaccesible o error de red. Usando motor LocalStorage:", errMsg);
             return this.queryLocalStorageFallback(sql, params);
         }
     }
@@ -214,6 +222,10 @@ class DatabaseManager {
 
     queryLocalStorageFallback(sql, params) {
         const cleanSql = sql.trim().toLowerCase();
+
+        if (cleanSql.startsWith("alter table") || cleanSql.startsWith("create table")) {
+            return { rows: [], rowsAffected: 0 };
+        }
         
         // Simulación básica de consultas SQL recurrentes en LocalStorage
         if (cleanSql.startsWith("select")) {
