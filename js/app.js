@@ -584,28 +584,67 @@ class AppUIManager {
 
     async saveRequestedPhone() {
         const input = document.getElementById('requestPhoneInput');
-        if (!input || !input.value.trim()) return alert('Por favor ingresa tu número de teléfono.');
+        if (!input || !input.value.trim()) {
+            this.showAlert('Atención', 'Por favor ingresa tu número de teléfono.', 'warning');
+            return;
+        }
         const phone = input.value.trim();
-        const user = this._phoneRequestUser;
+        const user = this._phoneRequestUser || Auth.currentUser;
         if (!user) return;
 
-        // Actualizar usuario
+        // 1. Actualizar usuario en memoria
         user.phone = phone;
-        try {
-            await DB.query('UPDATE users SET phone = ? WHERE id = ?', [phone, user.id]);
-        } catch (e) { console.warn('Error actualizando teléfono en Turso:', e); }
-        DB.setLocalRecord('users', user);
+        if (Auth.currentUser) {
+            Auth.currentUser.phone = phone;
+        }
 
-        // Actualizar el negocio también
+        // 2. Actualizar tabla de usuarios en LocalStorage
+        const users = DB.getLocalTable("users");
+        const uIdx = users.findIndex(u => u.id === user.id || u.email === user.email);
+        if (uIdx >= 0) {
+            users[uIdx].phone = phone;
+            DB.setLocalTable("users", users);
+        } else {
+            users.push(user);
+            DB.setLocalTable("users", users);
+        }
+
+        // 3. Actualizar tabla de usuarios en Turso DB con fallback de migración
+        try {
+            await DB.query('UPDATE users SET phone = ? WHERE id = ? OR email = ?', [phone, user.id, user.email]);
+        } catch (e) {
+            try {
+                await DB.query('ALTER TABLE users ADD COLUMN phone TEXT').catch(() => {});
+                await DB.query('UPDATE users SET phone = ? WHERE id = ? OR email = ?', [phone, user.id, user.email]);
+            } catch (err) {
+                console.warn('Error guardando teléfono en Turso:', err);
+            }
+        }
+
+        // 4. Actualizar teléfono en el comercio también (si estaba vacío)
         if (Auth.currentBusiness && (!Auth.currentBusiness.phone || Auth.currentBusiness.phone === '0414-0000000' || Auth.currentBusiness.phone === '')) {
             Auth.currentBusiness.phone = phone;
+            const businesses = DB.getLocalTable("businesses");
+            const bIdx = businesses.findIndex(b => b.id === Auth.currentBusiness.id);
+            if (bIdx >= 0) {
+                businesses[bIdx].phone = phone;
+                DB.setLocalTable("businesses", businesses);
+            }
             try {
                 await DB.query('UPDATE businesses SET phone = ? WHERE id = ?', [phone, Auth.currentBusiness.id]);
             } catch (e) {}
-            DB.setLocalRecord('businesses', Auth.currentBusiness);
         }
 
-        bootstrap.Modal.getInstance(document.getElementById('modalRequestPhone')).hide();
+        // 5. Guardar sesión actualizada
+        Auth.saveSession(Auth.currentUser || user, Auth.currentBusiness);
+
+        // 6. Ocultar modal y notificar
+        const modalEl = document.getElementById('modalRequestPhone');
+        if (modalEl) {
+            const modalInstance = bootstrap.Modal.getInstance(modalEl);
+            if (modalInstance) modalInstance.hide();
+        }
+        input.value = "";
         this.showAlert('Teléfono Guardado', '¡Tu número de contacto ha sido registrado exitosamente!', 'success');
     }
 }

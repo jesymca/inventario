@@ -178,9 +178,23 @@ class AuthManager {
             const name = payload.name || "Usuario Google";
             const googlePhone = payload.phone_number || payload.phone || payload.phoneNumber || null;
 
-            // Buscar si ya existe el usuario
-            const res = await DB.query("SELECT * FROM users WHERE email = ? OR google_id = ?", [email, googleId]);
-            let user = (res.rows || [])[0];
+            // Buscar si ya existe el usuario (primero en Turso DB y luego en LocalStorage)
+            let user = null;
+            try {
+                const res = await DB.query("SELECT * FROM users WHERE email = ? OR google_id = ?", [email, googleId]);
+                user = (res.rows || [])[0];
+            } catch (e) {}
+
+            const localUsers = DB.getLocalTable("users");
+            const localUser = localUsers.find(u => u.email === email || (googleId && u.google_id === googleId));
+
+            if (!user && localUser) {
+                user = localUser;
+            } else if (user && localUser) {
+                if ((!user.phone || !user.phone.trim()) && localUser.phone) {
+                    user.phone = localUser.phone;
+                }
+            }
 
             if (!user) {
                 // Registrar nuevo usuario desde Google
@@ -190,7 +204,7 @@ class AuthManager {
                     google_id: googleId,
                     name: name,
                     email: email,
-                    phone: "",
+                    phone: googlePhone || "",
                     password_hash: null,
                     role: email === CONFIG.SUPER_ADMIN.email.toLowerCase() ? "superadmin" : "user",
                     trial_starts_at: now.toISOString(),
@@ -201,13 +215,21 @@ class AuthManager {
 
                 try {
                     await DB.query(
-                        `INSERT INTO users (id, google_id, name, email, role, trial_starts_at, is_active, created_at) VALUES (?, ?, ?, ?, ?, ?, 1, ?)`,
-                        [user.id, user.google_id, user.name, user.email, user.role, user.trial_starts_at, user.created_at]
+                        `INSERT INTO users (id, google_id, name, email, phone, role, trial_starts_at, is_active, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, 1, ?)`,
+                        [user.id, user.google_id, user.name, user.email, user.phone, user.role, user.trial_starts_at, user.created_at]
                     );
                 } catch (e) {
-                    console.warn("Could not insert google user to Turso DB:", e);
+                    try {
+                        await DB.query(
+                            `INSERT INTO users (id, google_id, name, email, role, trial_starts_at, is_active, created_at) VALUES (?, ?, ?, ?, ?, ?, 1, ?)`,
+                            [user.id, user.google_id, user.name, user.email, user.role, user.trial_starts_at, user.created_at]
+                        );
+                    } catch (err) {}
                 }
-                DB.setLocalRecord("users", user);
+
+                const users = DB.getLocalTable("users");
+                users.push(user);
+                DB.setLocalTable("users", users);
 
                 // Crear Comercio Predeterminado
                 const defaultBiz = {
@@ -215,7 +237,7 @@ class AuthManager {
                     owner_user_id: user.id,
                     name: `Comercio de ${user.name}`,
                     address: "Dirección Principal",
-                    phone: "",
+                    phone: user.phone || "",
                     email: user.email,
                     logo_url: null,
                     branding_color: "#0d6efd",
@@ -249,7 +271,12 @@ class AuthManager {
                         await DB.query("UPDATE users SET google_id = ? WHERE id = ?", [googleId, user.id]);
                     } catch (e) {}
                 }
-                DB.setLocalRecord("users", user);
+                const users = DB.getLocalTable("users");
+                const uIdx = users.findIndex(u => u.id === user.id || u.email === user.email);
+                if (uIdx >= 0) {
+                    users[uIdx] = { ...users[uIdx], ...user };
+                    DB.setLocalTable("users", users);
+                }
             }
 
             const loginResult = await this.handlePostLogin(user);
@@ -259,13 +286,13 @@ class AuthManager {
                 AppUI.renderApp();
             }
 
-            // Si el usuario es nuevo de Google y no tiene teléfono, solicitar
-            if (!user.phone && user.id.startsWith('usr_g_')) {
+            // Si el usuario no tiene número de teléfono registrado, solicitar solo si está vacío
+            if (!user.phone || !user.phone.trim()) {
                 setTimeout(() => {
                     if (typeof AppUI !== 'undefined' && AppUI.showPhoneRequestModal) {
                         AppUI.showPhoneRequestModal(user);
                     }
-                }, 1500);
+                }, 1200);
             }
 
             return loginResult;

@@ -91,6 +91,10 @@ class DatabaseManager {
      */
     async runMigrations() {
         const migrations = [
+            "ALTER TABLE users ADD COLUMN phone TEXT",
+            "ALTER TABLE businesses ADD COLUMN rif TEXT",
+            "ALTER TABLE businesses ADD COLUMN pdf_header_text TEXT",
+            "ALTER TABLE businesses ADD COLUMN pdf_footer_text TEXT",
             "ALTER TABLE products ADD COLUMN sell_type TEXT DEFAULT 'retail'",
             "ALTER TABLE products ADD COLUMN wholesale_price REAL DEFAULT 0",
             "ALTER TABLE products ADD COLUMN wholesale_min_qty INTEGER DEFAULT 1",
