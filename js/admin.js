@@ -111,7 +111,10 @@ class AdminManager {
     /**
      * Renderiza el Panel Principal de Administración
      */
-    async renderAdminDashboard(containerId) {
+    async renderAdminDashboard(containerId, activeTab = null) {
+        if (!activeTab) {
+            activeTab = AppUI.getHashTab() || "tab-sales";
+        }
         const container = document.getElementById(containerId);
         if (!container) return;
 
@@ -523,6 +526,17 @@ class AdminManager {
         this.loadAdminPaymentMethods();
         this.loadAdminIncidentsTable();
         this.runConnectivityTests();
+
+        if (activeTab && activeTab !== "tab-sales") {
+            const btnEl = document.getElementById(`${activeTab}-tab`);
+            if (btnEl) {
+                const tabInstance = bootstrap.Tab.getOrCreateInstance(btnEl);
+                tabInstance.show();
+            }
+        }
+
+        const currentHash = AppUI.getTabHash(activeTab, true);
+        AppUI.updateUrlHash(currentHash);
     }
 
     getGlobalStats() {

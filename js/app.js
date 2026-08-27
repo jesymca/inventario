@@ -10,11 +10,120 @@ class AppUIManager {
     }
 
     async init() {
+        this.initHashRouting();
         this.renderNavbar();
         this.renderApp();
         this.initGoogleAuth();
         // Cargar precio desde Turso/localStorage y actualizar landing
         await this.loadAndUpdateMembershipPrice();
+    }
+
+    /**
+     * Mapea un hash de URL (#compras, #ventas, etc.) a su pestaña interna correspondiente
+     */
+    getHashTab() {
+        const hash = (window.location.hash || "").toLowerCase().trim();
+        
+        // Mapeo Pestañas de Usuario
+        if (hash === "#inventario") return "tab-inventory";
+        if (hash === "#ventas") return "tab-sales";
+        if (hash === "#compras") return "tab-purchases";
+        if (hash === "#clientes") return "tab-clients";
+        if (hash === "#proveedores") return "tab-suppliers";
+        if (hash === "#reportes") return "tab-reports";
+        if (hash === "#estadisticas") return "tab-stats";
+        if (hash === "#mantenimiento" || hash === "#respaldos") return "tab-maintenance";
+        if (hash === "#perfil" || hash === "#ajustes" || hash === "#negocio") return "tab-profile";
+        if (hash === "#pagos" || hash === "#membresia") return "tab-profile";
+
+        // Mapeo Pestañas de SuperAdmin
+        if (hash === "#admin-ventas" || hash === "#admin-analitica") return "tab-sales";
+        if (hash === "#admin-pagos" || hash === "#admin-membresias") return "tab-payments";
+        if (hash === "#admin-usuarios") return "tab-users";
+        if (hash === "#admin-comercios" || hash === "#admin-licencias") return "tab-clients";
+        if (hash === "#admin-productos" || hash === "#admin-catalogo") return "tab-products";
+        if (hash === "#admin-bancos") return "tab-banks";
+        if (hash === "#admin-metodos") return "tab-methods";
+        if (hash === "#admin-conectividad" || hash === "#admin-api") return "tab-connectivity";
+        if (hash === "#admin-incidencias") return "tab-incidents";
+
+        return null;
+    }
+
+    /**
+     * Mapea una pestaña interna al hash descriptivo para la barra de navegación
+     */
+    getTabHash(tabKey, isAdmin = false) {
+        if (isAdmin) {
+            const adminMap = {
+                "tab-sales": "#admin-ventas",
+                "tab-payments": "#admin-pagos",
+                "tab-users": "#admin-usuarios",
+                "tab-clients": "#admin-comercios",
+                "tab-products": "#admin-productos",
+                "tab-banks": "#admin-bancos",
+                "tab-methods": "#admin-metodos",
+                "tab-connectivity": "#admin-conectividad",
+                "tab-incidents": "#admin-incidencias"
+            };
+            return adminMap[tabKey] || "#admin-ventas";
+        } else {
+            const userMap = {
+                "tab-inventory": "#inventario",
+                "tab-sales": "#ventas",
+                "tab-purchases": "#compras",
+                "tab-clients": "#clientes",
+                "tab-suppliers": "#proveedores",
+                "tab-reports": "#reportes",
+                "tab-stats": "#estadisticas",
+                "tab-maintenance": "#mantenimiento",
+                "tab-profile": "#ajustes"
+            };
+            return userMap[tabKey] || "#inventario";
+        }
+    }
+
+    /**
+     * Actualiza el Hash de la URL de forma limpia sin saltos repentinos
+     */
+    updateUrlHash(hash) {
+        if (!hash) return;
+        if (window.location.hash !== hash) {
+            history.replaceState(null, null, hash);
+        }
+    }
+
+    /**
+     * Registra escuchadores globales de eventos de cambio de Hash y cambio de pestañas de Bootstrap
+     */
+    initHashRouting() {
+        if (this._hashRoutingInitialized) return;
+        this._hashRoutingInitialized = true;
+
+        window.addEventListener("hashchange", () => {
+            if (Auth.currentUser) {
+                this.renderApp();
+            }
+        });
+
+        document.addEventListener("shown.bs.tab", (e) => {
+            const targetId = e.target.getAttribute("data-bs-target") || e.target.getAttribute("href");
+            if (!targetId) return;
+
+            // Pestañas Usuario
+            if (targetId.startsWith("#pills-")) {
+                const userTabKey = targetId.replace("#pills-", "tab-");
+                const hash = this.getTabHash(userTabKey, false);
+                this.updateUrlHash(hash);
+            }
+
+            // Pestañas Admin
+            if (targetId.startsWith("#tab-")) {
+                const adminTabKey = targetId.replace("#", "");
+                const hash = this.getTabHash(adminTabKey, true);
+                this.updateUrlHash(hash);
+            }
+        });
     }
 
     /**
@@ -341,10 +450,17 @@ class AppUIManager {
             landingView.classList.add("d-none");
             appView.classList.remove("d-none");
 
+            const hashTab = this.getHashTab();
+
             if (Auth.isSuperAdmin()) {
-                Admin.renderAdminDashboard("appView");
+                Admin.renderAdminDashboard("appView", hashTab || "tab-sales");
             } else {
-                User.renderUserDashboard("appView");
+                User.renderUserDashboard("appView", hashTab || "tab-inventory");
+            }
+
+            // Si se solicitó #pagos o #membresia directamente en la URL
+            if (window.location.hash === "#pagos" || window.location.hash === "#membresia") {
+                setTimeout(() => User.openReportPaymentModal(), 300);
             }
         } else {
             landingView.classList.remove("d-none");

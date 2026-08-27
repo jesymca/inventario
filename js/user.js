@@ -15,7 +15,10 @@ class UserManager {
     /**
      * Renderiza la Sección del Comercio
      */
-    async renderUserDashboard(containerId, activeTab = "tab-inventory") {
+    async renderUserDashboard(containerId, activeTab = null) {
+        if (!activeTab) {
+            activeTab = AppUI.getHashTab() || "tab-inventory";
+        }
         const container = document.getElementById(containerId);
         if (!container) return;
 
@@ -685,6 +688,9 @@ class UserManager {
         await this.loadSalesTable();
         await this.loadPurchasesTable();
         await this.loadDelegatedAdminsList();
+
+        const currentHash = AppUI.getTabHash(activeTab, false);
+        AppUI.updateUrlHash(currentHash);
     }
 
     // --- MÓDULO INVENTARIO Y BÚSQUEDA ---
